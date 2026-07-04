@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_alignParentStart="true"
+        android:layout_toStartOf="@+id/btnToggleRole">
+
+        <TextView
+            android:id="@+id/tvMemberName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="成員名字"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="#1A1A1A"/>
+
+        <TextView
+            android:id="@+id/tvMemberRole"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="身份：User"
+            android:textSize="12sp"
+            android:textColor="#3498DB"/>
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/btnToggleRole"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="變更權限"
+        android:textSize="12sp"
+        android:layout_alignParentEnd="true"
+        android:layout_centerInParent="true"
+        android:backgroundTint="#2ECC71"/>
+</RelativeLayout>

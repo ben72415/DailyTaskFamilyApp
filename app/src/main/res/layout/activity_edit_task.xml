@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="#F9F9FA">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/tvEditTitleHeader"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="編輯家庭任務資訊"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:textColor="#1A1A1A"
+                android:layout_marginBottom="24dp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="資訊中心備忘錄 (Centralized Info Notes)"
+                android:textSize="16sp"
+                android:textColor="#555555"
+                android:layout_marginBottom="8dp"/>
+
+            <EditText
+                android:id="@+id/etEditTaskNotes"
+                android:layout_width="match_parent"
+                android:layout_height="120dp"
+                android:background="@android:drawable/editbox_background"
+                android:padding="10dp"
+                android:gravity="top|left"
+                android:layout_marginBottom="20dp"
+                android:inputType="textMultiLine"/>
+
+            <CheckBox
+                android:id="@+id/cbEditStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="標記此任務為「已完成」"
+                android:textSize="16sp"
+                android:layout_marginBottom="20dp"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:id="@+id/tvEditImageCount"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:text="相片附件 (長按相片可刪除): 0/10"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="#555555" />
+
+                <Button
+                    android:id="@+id/btnEditPickImage"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="📷 導入/追加相片"
+                    android:textSize="12sp"
+                    android:backgroundTint="#42A5F5" />
+            </LinearLayout>
+
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="110dp"
+                android:layout_marginBottom="24dp"
+                android:background="#ECEFF1"
+                android:padding="5dp">
+
+                <LinearLayout
+                    android:id="@+id/layoutEditImageContainer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical" />
+            </HorizontalScrollView>
+
+            <Button
+                android:id="@+id/btnEditReschedule"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:text="⏳ 未能完成，重新安排日期時間"
+                android:textSize="15sp"
+                android:backgroundTint="#FF5722"
+                android:layout_marginBottom="16dp"/>
+
+        </LinearLayout>
+    </ScrollView>
+
+    <Button
+        android:id="@+id/btnEditSaveTask"
+        android:layout_width="match_parent"
+        android:layout_height="55dp"
+        android:text="儲存所有修改"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:backgroundTint="#4CAF50"
+        android:textColor="#FFFFFF"/>
+
+</LinearLayout>

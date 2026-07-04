@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:gravity="center_vertical"
+    android:background="#F8F9FA">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="👨‍👩‍👧‍👦 建立或加入家庭群組"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:textColor="#2C3E50"
+        android:layout_marginBottom="32dp"
+        android:layout_gravity="center_horizontal"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@android:drawable/dialog_holo_light_frame"
+        android:padding="16dp"
+        android:layout_marginBottom="24dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="方案 A：你是家庭管理者 (Owner)"
+            android:textStyle="bold"
+            android:textColor="#2980B9"
+            android:layout_marginBottom="12dp"/>
+
+        <Button
+            android:id="@+id/btnCreateGroup"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:text="建立全新家庭群組"
+            android:backgroundTint="#2196F3"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@android:drawable/dialog_holo_light_frame"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="方案 B：加入現有的家庭群組"
+            android:textStyle="bold"
+            android:textColor="#27AE60"
+            android:layout_marginBottom="12dp"/>
+
+        <EditText
+            android:id="@+id/etGroupCode"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:hint="輸入 6 位數家庭邀請代碼"
+            android:background="@android:drawable/editbox_background"
+            android:padding="12dp"
+            android:inputType="textCapCharacters"
+            android:maxLength="6"
+            android:layout_marginBottom="12dp"/>
+
+        <Button
+            android:id="@+id/btnJoinGroup"
+            android:layout_width="match_parent"
+            android:layout_height="50dp"
+            android:text="驗證並加入群組 (User)"
+            android:backgroundTint="#4CAF50"/>
+    </LinearLayout>
+
+</LinearLayout>

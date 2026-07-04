@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="#F9F9FA"
+    tools:context=".AddTaskActivity">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="新增家庭任務"
+                android:textSize="22sp"
+                android:textStyle="bold"
+                android:textColor="#1A1A1A"
+                android:layout_marginBottom="24dp"/>
+
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="任務名稱"
+                android:textSize="16sp"
+                android:textColor="#555555"
+                android:layout_marginBottom="8dp"/>
+
+            <EditText
+                android:id="@+id/etTaskTitle"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:hint="例如：買餸、接小朋友放學..."
+                android:background="@android:drawable/editbox_background"
+                android:padding="10dp"
+                android:layout_marginBottom="16dp"
+                android:inputType="text"/>
+
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="執行時間段"
+                android:textSize="16sp"
+                android:textColor="#555555"
+                android:layout_marginBottom="8dp"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="12dp"
+                android:gravity="center_vertical">
+
+                <Button
+                    android:id="@+id/btnSelectStartTime"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="開始時間"
+                    android:backgroundTint="#9C27B0"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text=" 至 "
+                    android:textSize="16sp"
+                    android:textColor="#333333"
+                    android:layout_marginHorizontal="4dp"/>
+
+                <Button
+                    android:id="@+id/btnSelectEndTime"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="結束時間"
+                    android:backgroundTint="#673AB7"/>
+
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tvSelectedTime"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="時間段: 12:00 - 13:00"
+                android:textSize="14sp"
+                android:textColor="#333333"
+                android:layout_marginBottom="16dp"
+                android:textStyle="bold"/>
+
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="負責成員 (Family Member)"
+                android:textSize="16sp"
+                android:textColor="#555555"
+                android:layout_marginBottom="8dp"/>
+
+            <Spinner
+                android:id="@+id/spinnerMember"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:background="@android:drawable/btn_dropdown"
+                android:layout_marginBottom="16dp"/>
+
+            <!-- 資訊中心備忘錄 -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="資訊中心備忘錄 (Centralized Info Notes)"
+                android:textSize="16sp"
+                android:textColor="#555555"
+                android:layout_marginBottom="8dp"/>
+
+            <EditText
+                android:id="@+id/etTaskNotes"
+                android:layout_width="match_parent"
+                android:layout_height="80dp"
+                android:hint="例如購物清單、地址、電費單編號等..."
+                android:background="@android:drawable/editbox_background"
+                android:padding="10dp"
+                android:gravity="top|left"
+                android:layout_marginBottom="16dp"
+                android:inputType="textMultiLine"/>
+
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:id="@+id/tvImageCount"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:text="相片附件 (最多 10 張): 0/10"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="#555555" />
+
+                <Button
+                    android:id="@+id/btnAddTaskImage"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="+ 加相片"
+                    android:textSize="12sp"
+                    android:backgroundTint="#607D8B" />
+            </LinearLayout>
+
+
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="100dp"
+                android:layout_marginBottom="24dp"
+                android:background="#ECEFF1"
+                android:padding="5dp">
+
+                <LinearLayout
+                    android:id="@+id/layoutImagePreviewContainer"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical" />
+            </HorizontalScrollView>
+
+        </LinearLayout>
+    </ScrollView>
+
+    <Button
+        android:id="@+id/btnSaveTask"
+        android:layout_width="match_parent"
+        android:layout_height="55dp"
+        android:text="儲存任務"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:backgroundTint="#4CAF50"
+        android:textColor="#FFFFFF"/>
+
+</LinearLayout>
