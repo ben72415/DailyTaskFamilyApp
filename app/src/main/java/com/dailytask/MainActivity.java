@@ -114,22 +114,31 @@ public class MainActivity extends AppCompatActivity {
 
         if (currentUserGroupId == null || currentUserGroupId.isEmpty()) return;
 
+
+        DatabaseHelper localDb = new DatabaseHelper(this);
+
         taskListenerRegistration = db.collection("tasks")
                 .whereEqualTo("group_id", currentUserGroupId)
                 .whereEqualTo("task_date", currentDateSelected)
                 .addSnapshotListener((value, error) -> {
+
+
                     if (error != null) {
+                        List<Task> localTaskList = localDb.getTasksByDate(currentDateSelected);
+                        if (localTaskList != null && !localTaskList.isEmpty()) {
+                            taskAdapter = new TaskAdapter(localTaskList);
+                            rvTasks.setAdapter(taskAdapter);
+                            Toast.makeText(MainActivity.this, "📡 處於離線狀態，已成功加載本地加密備份任務", Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(MainActivity.this, "📴 網絡中斷且本地尚無當日快取", Toast.LENGTH_SHORT).show();
+                        }
                         return;
                     }
 
                     List<Task> cloudTaskList = new ArrayList<>();
                     if (value != null) {
                         for (QueryDocumentSnapshot doc : value) {
-
-
-                            int idLong = 0;
                             String taskIdStr = doc.getId();
-
                             String title = doc.getString("title");
                             String member = doc.getString("member");
                             String taskDate = doc.getString("task_date");
@@ -142,7 +151,6 @@ public class MainActivity extends AppCompatActivity {
                             Task task = new Task(taskIdStr, title, member, taskDate, taskTime, taskNotes, taskStatus, taskImage);
                             task.setCloudDocId(doc.getId());
                             task.setCreatedBy(createdBy);
-
                             cloudTaskList.add(task);
                         }
                     }

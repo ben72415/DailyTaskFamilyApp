@@ -48,7 +48,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     }
 
     //
-    public boolean addTask(String title, String member, String date, String time, String notes) {
+    public void addTask(String title, String member, String date, String time, String notes, String image) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues values = new ContentValues();
         values.put(COLUMN_TITLE, title);
@@ -56,12 +56,11 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         values.put(COLUMN_DATE, date);
         values.put(COLUMN_TIME, time);
         values.put(COLUMN_NOTES, notes);
-        values.put(COLUMN_STATUS, "未完成");
-        values.put(COLUMN_IMAGE, ""); // 預設無附件
+        values.put(COLUMN_STATUS, "未完成"); // 預設初始狀態
+        values.put(COLUMN_IMAGE, image);     // 🚀 修正：成功將圖片路徑持久化存在本地！
 
         long result = db.insert(TABLE_TASKS, null, values);
         db.close();
-        return result != -1;
     }
 
     //

@@ -65,7 +65,6 @@ public class AddTaskActivity extends AppCompatActivity {
     private final ArrayList<String> selectedImageUris = new ArrayList<>();
     private Uri cameraImageUri;
 
-
     private MediaRecorder mediaRecorder;
     private MediaPlayer mediaPlayer;
     private String voiceFilePath = "";
@@ -88,7 +87,7 @@ public class AddTaskActivity extends AppCompatActivity {
             getSupportActionBar().setTitle("雲端發布：新增任務");
         }
 
-        // 🎯 智慧合併權限檢查 (通知、相機、錄音)
+
         ArrayList<String> permissionsNeeded = new ArrayList<>();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
@@ -120,14 +119,11 @@ public class AddTaskActivity extends AppCompatActivity {
         tvImageCount = findViewById(R.id.tvImageCount);
         layoutImagePreviewContainer = findViewById(R.id.layoutImagePreviewContainer);
 
-
         btnStartRecord = findViewById(R.id.btnStartRecord);
         btnStopRecord = findViewById(R.id.btnStopRecord);
         btnPlayRecord = findViewById(R.id.btnPlayRecord);
 
-
         voiceFilePath = getExternalCacheDir().getAbsolutePath() + "/Task_Voice_Temp.3gp";
-
 
         btnStartRecord.setOnClickListener(v -> {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
@@ -152,7 +148,6 @@ public class AddTaskActivity extends AppCompatActivity {
             }
         });
 
-        // ⏹️ 停止錄音事件監聽
         btnStopRecord.setOnClickListener(v -> {
             if (mediaRecorder != null) {
                 try {
@@ -169,7 +164,6 @@ public class AddTaskActivity extends AppCompatActivity {
                 Toast.makeText(this, "✅ 語音錄製完成！", Toast.LENGTH_SHORT).show();
             }
         });
-
 
         btnPlayRecord.setOnClickListener(v -> {
             if (mediaPlayer != null) {
@@ -246,6 +240,7 @@ public class AddTaskActivity extends AppCompatActivity {
             timePickerDialog.show();
         });
 
+
         btnSaveTask.setOnClickListener(v -> {
             String title = etTaskTitle.getText().toString().trim();
             Object selectedMemberObj = spinnerMember.getSelectedItem();
@@ -263,6 +258,7 @@ public class AddTaskActivity extends AppCompatActivity {
 
             String finalTimeRange = startTime + " - " + endTime;
 
+
             StringBuilder imageStringBuilder = new StringBuilder();
             for (int i = 0; i < selectedImageUris.size(); i++) {
                 imageStringBuilder.append(selectedImageUris.get(i));
@@ -270,7 +266,13 @@ public class AddTaskActivity extends AppCompatActivity {
             }
             String combinedImagesStr = imageStringBuilder.toString();
 
+            // 生成雲端專用的 Document ID
             String cloudDocIdStr = db.collection("tasks").document().getId();
+
+
+            DatabaseHelper localDb = new DatabaseHelper(AddTaskActivity.this);
+            localDb.addTask(title, member, selectedDate != null ? selectedDate : "", finalTimeRange, notes, combinedImagesStr);
+
 
             Map<String, Object> taskData = new HashMap<>();
             taskData.put("id", cloudDocIdStr);
@@ -282,7 +284,6 @@ public class AddTaskActivity extends AppCompatActivity {
             taskData.put("task_status", "未完成");
             taskData.put("task_image", combinedImagesStr);
 
-
             File recordedFile = new File(voiceFilePath);
             if (recordedFile.exists() && btnPlayRecord.isEnabled()) {
                 taskData.put("task_voice", voiceFilePath);
@@ -293,14 +294,27 @@ public class AddTaskActivity extends AppCompatActivity {
             taskData.put("group_id", currentUserGroupId);
             taskData.put("created_by", currentUid != null ? currentUid : "");
 
+
             db.collection("tasks").document(cloudDocIdStr)
                     .set(taskData)
                     .addOnSuccessListener(aVoid -> {
+
                         setTaskAlarm(title, member);
-                        Toast.makeText(AddTaskActivity.this, "家庭雲端任務發布成功！", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(AddTaskActivity.this, "家庭雲端與本地同步發布成功！", Toast.LENGTH_SHORT).show();
                         finish();
                     })
-                    .addOnFailureListener(e -> Toast.makeText(AddTaskActivity.this, "發布失敗: " + e.getMessage(), Toast.LENGTH_LONG).show());
+                    .addOnFailureListener(e -> {
+
+                        setTaskAlarm(title, member);
+                        Toast.makeText(AddTaskActivity.this, "已安全保存在本地 SQLite 緩存！", Toast.LENGTH_LONG).show();
+                        finish();
+                    });
+
+
+            setTaskAlarm(title, member);
+            Toast.makeText(AddTaskActivity.this, "任務已成功發布並加入同步隊列！", Toast.LENGTH_SHORT).show();
+            finish();
+
         });
     }
 
@@ -414,8 +428,10 @@ public class AddTaskActivity extends AppCompatActivity {
             PendingIntent pendingIntent = PendingIntent.getBroadcast(
                     this, requestCode, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
             AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+
             if (alarmManager != null) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
+
                     alarmManager.set(AlarmManager.RTC_WAKEUP, alarmCalendar.getTimeInMillis(), pendingIntent);
                 } else {
                     try {

@@ -12,6 +12,8 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.FirebaseFirestoreSettings;
+import com.google.firebase.firestore.PersistentCacheSettings;
 
 public class LoginActivity extends AppCompatActivity {
 
@@ -20,8 +22,8 @@ public class LoginActivity extends AppCompatActivity {
     private TextView tvLoginSubtitle, tvSwitchMode;
 
     private FirebaseAuth mAuth;
-    private FirebaseFirestore db; // 🎯 修正：宣告雲端資料庫變數 db
-    private boolean isLoginMode = true; // 標記目前是登入模式還是註冊模式
+    private FirebaseFirestore db;
+    private boolean isLoginMode = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -29,16 +31,22 @@ public class LoginActivity extends AppCompatActivity {
         setContentView(R.layout.activity_login);
 
         mAuth = FirebaseAuth.getInstance();
-
-
         db = FirebaseFirestore.getInstance();
 
-
-        com.google.firebase.firestore.FirebaseFirestoreSettings settings =
-                new com.google.firebase.firestore.FirebaseFirestoreSettings.Builder()
-                        .setLocalCacheSettings(com.google.firebase.firestore.PersistentCacheSettings.newBuilder().build())
-                        .build();
+        // 開啟現代化 Firebase 離線快取持久化設定
+        FirebaseFirestoreSettings settings = new FirebaseFirestoreSettings.Builder()
+                .setLocalCacheSettings(PersistentCacheSettings.newBuilder().build())
+                .build();
         db.setFirestoreSettings(settings);
+
+
+        if (mAuth.getCurrentUser() != null) {
+
+            Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+            startActivity(intent);
+            finish();
+            return;
+        }
 
         if (getSupportActionBar() != null) {
             getSupportActionBar().hide();
@@ -96,12 +104,10 @@ public class LoginActivity extends AppCompatActivity {
                         })
                         .addOnFailureListener(e -> Toast.makeText(LoginActivity.this, "登入失敗: " + e.getMessage(), Toast.LENGTH_LONG).show());
             } else {
-
                 if (name.isEmpty()) {
                     Toast.makeText(LoginActivity.this, "註冊必須填寫用戶姓名！", Toast.LENGTH_SHORT).show();
                     return;
                 }
-
 
                 if (!password.equals(confirmPassword)) {
                     Toast.makeText(LoginActivity.this, "❌ 兩次輸入的密碼不相同，請重新核對！", Toast.LENGTH_LONG).show();

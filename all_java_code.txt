@@ -299,7 +299,7 @@ public class MainActivity extends AppCompatActivity {
                     if (value != null) {
                         for (QueryDocumentSnapshot doc : value) {
 
-                            // 🎯 究極修正點：安全的從雲端抓取 Long 數字並轉為標準 int，徹底杜絕轉型崩潰閃退！
+
                             int idLong = 0;
                             String taskIdStr = doc.getId();
 
@@ -346,7 +346,7 @@ import java.util.List;
 public class DatabaseHelper extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "DailyTask.db";
-    private static final int DATABASE_VERSION = 6; // 升級至版本 6
+    private static final int DATABASE_VERSION = 6;
 
     public static final String TABLE_TASKS = "tasks";
     public static final String COLUMN_ID = "id";
@@ -356,7 +356,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public static final String COLUMN_TIME = "task_time";
     public static final String COLUMN_NOTES = "task_notes";
     public static final String COLUMN_STATUS = "task_status";
-    public static final String COLUMN_IMAGE = "task_image"; // 新增的圖片路徑欄位
+    public static final String COLUMN_IMAGE = "task_image";
 
     public DatabaseHelper(Context context) {
         super(context, DATABASE_NAME, null, DATABASE_VERSION);
@@ -447,10 +447,14 @@ package com.dailytask;
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
 import android.content.ClipData;
+import android.content.ContentValues;
 import android.content.Intent;
 import android.graphics.Color;
+import android.media.MediaPlayer;
+import android.media.MediaRecorder;
 import android.net.Uri;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.CheckBox;
@@ -466,8 +470,9 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
-import com.google.firebase.firestore.FirebaseFirestoreSettings;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -480,7 +485,8 @@ public class EditTaskActivity extends AppCompatActivity {
     private TextView tvEditTitleHeader, tvEditImageCount, tvPermissionWarning;
     private EditText etEditTaskNotes;
     private CheckBox cbEditStatus;
-    private Button btnEditPickImage, btnEditReschedule, btnEditSaveTask;
+    private Button btnEditPickImage, btnEditCaptureImage, btnEditReschedule, btnEditSaveTask;
+    private Button btnEditStartRecord, btnEditStopRecord, btnEditPlayRecord;
     private LinearLayout layoutEditImageContainer;
 
     private FirebaseFirestore db;
@@ -492,21 +498,20 @@ public class EditTaskActivity extends AppCompatActivity {
     private String taskId;
     private String taskTitle, taskMember, taskDate, taskTime;
     private ArrayList<String> editImageUris = new ArrayList<>();
+    private Uri editCameraImageUri;
+
+
+    private MediaRecorder mediaRecorder;
+    private MediaPlayer mediaPlayer;
+    private String voiceFilePath = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_edit_task);
 
-
         mAuth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
-
-
-        FirebaseFirestoreSettings settings = new FirebaseFirestoreSettings.Builder()
-                .setPersistenceEnabled(true)
-                .build();
-        db.setFirestoreSettings(settings);
 
         if (mAuth.getCurrentUser() != null) {
             currentUid = mAuth.getCurrentUser().getUid();
@@ -517,15 +522,16 @@ public class EditTaskActivity extends AppCompatActivity {
             getSupportActionBar().setTitle("雲端管理：任務詳情");
         }
 
-
         taskId = getIntent().getStringExtra("TASK_ID");
+        taskTitle = getIntent().getStringExtra("TASK_TITLE");
+        if (taskTitle == null) taskTitle = "無標題任務";
+
         taskMember = getIntent().getStringExtra("TASK_MEMBER");
         taskDate = getIntent().getStringExtra("TASK_DATE");
         taskTime = getIntent().getStringExtra("TASK_TIME");
         String taskNotes = getIntent().getStringExtra("TASK_NOTES");
         String taskStatus = getIntent().getStringExtra("TASK_STATUS");
         String taskImagesStr = getIntent().getStringExtra("TASK_IMAGE");
-
 
         cloudDocId = getIntent().getStringExtra("CLOUD_DOC_ID");
         createdByUid = getIntent().getStringExtra("CREATED_BY_UID");
@@ -535,15 +541,25 @@ public class EditTaskActivity extends AppCompatActivity {
         etEditTaskNotes = findViewById(R.id.etEditTaskNotes);
         cbEditStatus = findViewById(R.id.cbEditStatus);
         btnEditPickImage = findViewById(R.id.btnEditPickImage);
+        btnEditCaptureImage = findViewById(R.id.btnEditCaptureImage);
         btnEditReschedule = findViewById(R.id.btnEditReschedule);
         btnEditSaveTask = findViewById(R.id.btnEditSaveTask);
         layoutEditImageContainer = findViewById(R.id.layoutEditImageContainer);
 
 
+        btnEditStartRecord = findViewById(R.id.btnEditStartRecord);
+        btnEditStopRecord = findViewById(R.id.btnEditStopRecord);
+        btnEditPlayRecord = findViewById(R.id.btnEditPlayRecord);
+
+
+        voiceFilePath = getExternalCacheDir().getAbsolutePath() + "/Task_Voice_Edit_Temp.3gp";
+
         tvPermissionWarning = new TextView(this);
         tvPermissionWarning.setTextSize(14);
         tvPermissionWarning.setPadding(0, 10, 0, 10);
-        ((LinearLayout)findViewById(R.id.etEditTaskNotes).getParent()).addView(tvPermissionWarning, 2);
+        if (etEditTaskNotes.getParent() instanceof LinearLayout) {
+            ((LinearLayout) findViewById(R.id.etEditTaskNotes).getParent()).addView(tvPermissionWarning, 2);
+        }
 
         tvEditTitleHeader.setText("任務: " + taskTitle + " (" + taskMember + ")");
         etEditTaskNotes.setText(taskNotes);
@@ -555,8 +571,62 @@ public class EditTaskActivity extends AppCompatActivity {
         rebuildImagePreviews();
 
 
-        checkUserAccessControl();
+        if (cloudDocId != null) {
+            db.collection("tasks").document(cloudDocId).get().addOnSuccessListener(documentSnapshot -> {
+                if (documentSnapshot.exists()) {
+                    String cloudVoicePath = documentSnapshot.getString("task_voice");
+                    if (cloudVoicePath != null && !cloudVoicePath.isEmpty()) {
+                        voiceFilePath = cloudVoicePath;
+                        btnEditPlayRecord.setEnabled(true); // 有歷史錄音，直接啟用播放按鈕
+                    }
+                }
+            });
+        }
 
+
+        btnEditStartRecord.setOnClickListener(v -> {
+            try {
+                mediaRecorder = new MediaRecorder();
+                mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+                mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+                mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
+                mediaRecorder.setOutputFile(voiceFilePath);
+                mediaRecorder.prepare();
+                mediaRecorder.start();
+
+                btnEditStartRecord.setEnabled(false);
+                btnEditStopRecord.setEnabled(true);
+                btnEditPlayRecord.setEnabled(false);
+                Toast.makeText(this, "🎙️ 正在補錄語音說明...", Toast.LENGTH_SHORT).show();
+            } catch (IOException e) { e.printStackTrace(); }
+        });
+
+
+        btnEditStopRecord.setOnClickListener(v -> {
+            if (mediaRecorder != null) {
+                try { mediaRecorder.stop(); } catch (RuntimeException e) {}
+                mediaRecorder.release();
+                mediaRecorder = null;
+                btnEditStartRecord.setEnabled(true);
+                btnEditStopRecord.setEnabled(false);
+                btnEditPlayRecord.setEnabled(true);
+                Toast.makeText(this, "✅ 語音補錄完成！", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+
+        btnEditPlayRecord.setOnClickListener(v -> {
+            try {
+                if (mediaPlayer != null) { mediaPlayer.release(); }
+                mediaPlayer = new MediaPlayer();
+                mediaPlayer.setDataSource(voiceFilePath);
+                mediaPlayer.prepare();
+                mediaPlayer.start();
+                Toast.makeText(this, "🔊 正在播放任務語音...", Toast.LENGTH_SHORT).show();
+            } catch (IOException e) { e.printStackTrace(); }
+        });
+
+        checkUserAccessControl();
 
         btnEditPickImage.setOnClickListener(v -> {
             if (editImageUris.size() >= 10) {
@@ -570,6 +640,22 @@ public class EditTaskActivity extends AppCompatActivity {
             startActivityForResult(intent, 400);
         });
 
+        if (btnEditCaptureImage != null) {
+            btnEditCaptureImage.setOnClickListener(v -> {
+                if (editImageUris.size() >= 10) {
+                    Toast.makeText(EditTaskActivity.this, "已達上限 10 張相片！", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                ContentValues values = new ContentValues();
+                values.put(MediaStore.Images.Media.TITLE, "DailyTask_EditCapture_" + System.currentTimeMillis());
+                values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+                editCameraImageUri = getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+
+                Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, editCameraImageUri);
+                startActivityForResult(cameraIntent, 450);
+            });
+        }
 
         btnEditReschedule.setOnClickListener(v -> {
             final Calendar c = Calendar.getInstance();
@@ -583,7 +669,6 @@ public class EditTaskActivity extends AppCompatActivity {
                         String newEndTime = String.format(Locale.getDefault(), "%02d:%02d", endHour, endMinute);
                         String newTimeRange = newStartTime + " - " + newEndTime;
 
-                        // 📡 升級：直接異步更新雲端 Firestore 文檔
                         if (cloudDocId != null) {
                             Map<String, Object> updates = new HashMap<>();
                             updates.put("task_date", newDate);
@@ -609,18 +694,22 @@ public class EditTaskActivity extends AppCompatActivity {
             datePickerDialog.show();
         });
 
-        // 儲存修改按鈕監聽
         btnEditSaveTask.setOnClickListener(v -> {
             String updatedNotes = etEditTaskNotes.getText().toString().trim();
             String updatedStatus = cbEditStatus.isChecked() ? "已完成" : "未完成";
             String finalImagesStr = buildCombinedImagesStr();
 
-            // 📡 升級：直接異步保存至雲端
             if (cloudDocId != null) {
                 Map<String, Object> updates = new HashMap<>();
                 updates.put("task_notes", updatedNotes);
                 updates.put("task_status", updatedStatus);
                 updates.put("task_image", finalImagesStr);
+
+
+                File vFile = new File(voiceFilePath);
+                if (vFile.exists() && btnEditPlayRecord.isEnabled()) {
+                    updates.put("task_voice", voiceFilePath);
+                }
 
                 db.collection("tasks").document(cloudDocId).update(updates)
                         .addOnSuccessListener(aVoid -> {
@@ -631,32 +720,33 @@ public class EditTaskActivity extends AppCompatActivity {
         });
     }
 
-
     private void checkUserAccessControl() {
         db.collection("users").document(currentUid).get()
                 .addOnSuccessListener(documentSnapshot -> {
                     if (documentSnapshot.exists()) {
                         String myRole = documentSnapshot.getString("role");
 
-
                         if ("User".equals(myRole) && !currentUid.equals(createdByUid)) {
-                            // 1. 鎖死所有操作按鈕與輸入框
                             btnEditSaveTask.setEnabled(false);
                             btnEditReschedule.setEnabled(false);
                             btnEditPickImage.setEnabled(false);
+                            if (btnEditCaptureImage != null) btnEditCaptureImage.setEnabled(false);
+
+
+                            btnEditStartRecord.setEnabled(false);
+                            btnEditStopRecord.setEnabled(false);
+
                             etEditTaskNotes.setEnabled(false);
                             cbEditStatus.setEnabled(false);
-
 
                             btnEditSaveTask.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#BDC3C7")));
                             btnEditReschedule.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#BDC3C7")));
                             btnEditPickImage.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#BDC3C7")));
-
+                            if (btnEditCaptureImage != null) btnEditCaptureImage.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#BDC3C7")));
 
                             tvPermissionWarning.setText("🛑 權限提示：你是家庭普通成員(User)，無權修改其他成員指派的任務。");
                             tvPermissionWarning.setTextColor(Color.parseColor("#E74C3C"));
                         } else {
-
                             tvPermissionWarning.setText("🔓 權限核准：你是 " + myRole + "，擁有本任務的完整編輯權限。");
                             tvPermissionWarning.setTextColor(Color.parseColor("#27AE60"));
                         }
@@ -686,8 +776,13 @@ public class EditTaskActivity extends AppCompatActivity {
                     editImageUris.add(uri.toString());
                 } catch (Exception e) { e.printStackTrace(); }
             }
-            rebuildImagePreviews();
         }
+        if (requestCode == 450 && resultCode == RESULT_OK) {
+            if (editCameraImageUri != null) {
+                editImageUris.add(editCameraImageUri.toString());
+            }
+        }
+        rebuildImagePreviews();
     }
 
     private void rebuildImagePreviews() {
@@ -719,9 +814,7 @@ public class EditTaskActivity extends AppCompatActivity {
                 imageView.setImageResource(android.R.drawable.ic_menu_gallery);
             }
 
-
             imageView.setOnLongClickListener(view -> {
-
                 if (!btnEditPickImage.isEnabled()) return true;
 
                 new AlertDialog.Builder(EditTaskActivity.this)
@@ -734,7 +827,6 @@ public class EditTaskActivity extends AppCompatActivity {
                         .setNegativeButton("取消", null).show();
                 return true;
             });
-
             layoutEditImageContainer.addView(imageView);
         }
     }
@@ -746,6 +838,13 @@ public class EditTaskActivity extends AppCompatActivity {
             if (i < editImageUris.size() - 1) sb.append(",");
         }
         return sb.toString();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (mediaRecorder != null) { mediaRecorder.release(); }
+        if (mediaPlayer != null) { mediaPlayer.release(); }
     }
 
     @Override
@@ -763,18 +862,20 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
+
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.firestore.FirebaseFirestore;
 
 public class LoginActivity extends AppCompatActivity {
 
-    // 🔒 100% 完整保留你所有的原班變數宣告
     private EditText etLoginName, etLoginEmail, etLoginPassword, etLoginConfirmPassword;
     private Button btnMainAction;
     private TextView tvLoginSubtitle, tvSwitchMode;
 
     private FirebaseAuth mAuth;
+    private FirebaseFirestore db; // 🎯 修正：宣告雲端資料庫變數 db
     private boolean isLoginMode = true; // 標記目前是登入模式還是註冊模式
 
     @Override
@@ -784,11 +885,20 @@ public class LoginActivity extends AppCompatActivity {
 
         mAuth = FirebaseAuth.getInstance();
 
+
+        db = FirebaseFirestore.getInstance();
+
+
+        com.google.firebase.firestore.FirebaseFirestoreSettings settings =
+                new com.google.firebase.firestore.FirebaseFirestoreSettings.Builder()
+                        .setLocalCacheSettings(com.google.firebase.firestore.PersistentCacheSettings.newBuilder().build())
+                        .build();
+        db.setFirestoreSettings(settings);
+
         if (getSupportActionBar() != null) {
             getSupportActionBar().hide();
         }
 
-        // 綁定所有 XML 實體元件
         etLoginName = findViewById(R.id.etLoginName);
         etLoginEmail = findViewById(R.id.etLoginEmail);
         etLoginPassword = findViewById(R.id.etLoginPassword);
@@ -797,27 +907,25 @@ public class LoginActivity extends AppCompatActivity {
         tvLoginSubtitle = findViewById(R.id.tvLoginSubtitle);
         tvSwitchMode = findViewById(R.id.tvSwitchMode);
 
-        // 🎯 修正：使用 Lambda 表達式優化模式切換監聽器，消除黃色警告
         tvSwitchMode.setOnClickListener(v -> {
             isLoginMode = !isLoginMode;
             if (isLoginMode) {
                 tvLoginSubtitle.setText("智能家庭任務協同系統");
                 etLoginName.setVisibility(View.GONE);
-                etLoginConfirmPassword.setVisibility(View.GONE); // 登入模式下隱藏
+                etLoginConfirmPassword.setVisibility(View.GONE);
                 btnMainAction.setText("安全登入");
                 btnMainAction.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#2196F3")));
                 tvSwitchMode.setText("沒有帳號？點擊此處切換至「新增註冊」");
             } else {
                 tvLoginSubtitle.setText("建立全新家庭成員帳號");
                 etLoginName.setVisibility(View.VISIBLE);
-                etLoginConfirmPassword.setVisibility(View.VISIBLE); // 註冊模式下顯示
+                etLoginConfirmPassword.setVisibility(View.VISIBLE);
                 btnMainAction.setText("立即註冊");
                 btnMainAction.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#4CAF50")));
                 tvSwitchMode.setText("已有帳號？點擊此處切換至「返回登入」");
             }
         });
 
-        // 🎯 修正：使用 Lambda 表達式優化主按鈕點擊事件，消除所有 Auth 回調的黃色警告
         btnMainAction.setOnClickListener(v -> {
             String email = etLoginEmail.getText().toString().trim();
             String password = etLoginPassword.getText().toString().trim();
@@ -834,7 +942,6 @@ public class LoginActivity extends AppCompatActivity {
             }
 
             if (isLoginMode) {
-                // ------ 🚪 100% 保留原有登入功能 ------
                 mAuth.signInWithEmailAndPassword(email, password)
                         .addOnSuccessListener(authResult -> {
                             Toast.makeText(LoginActivity.this, "登入成功！歡迎回來", Toast.LENGTH_SHORT).show();
@@ -844,13 +951,13 @@ public class LoginActivity extends AppCompatActivity {
                         })
                         .addOnFailureListener(e -> Toast.makeText(LoginActivity.this, "登入失敗: " + e.getMessage(), Toast.LENGTH_LONG).show());
             } else {
-                // ------ 📝 100% 保留原有註冊與防錯功能 ------
+
                 if (name.isEmpty()) {
                     Toast.makeText(LoginActivity.this, "註冊必須填寫用戶姓名！", Toast.LENGTH_SHORT).show();
                     return;
                 }
 
-                // 雙重密碼一致性攔截鎖
+
                 if (!password.equals(confirmPassword)) {
                     Toast.makeText(LoginActivity.this, "❌ 兩次輸入的密碼不相同，請重新核對！", Toast.LENGTH_LONG).show();
                     return;
@@ -872,7 +979,7 @@ public class LoginActivity extends AppCompatActivity {
 package com.dailytask;
 
 public class Task {
-    private String id; // 🎯 修正：int 改為 String
+    private String id;
     private String title;
     private String member;
     private String date;
@@ -901,7 +1008,7 @@ public class Task {
     public String getCreatedBy() { return createdBy; }
     public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
 
-    public String getId() { return id; } // 🎯 修正：回傳 String
+    public String getId() { return id; }
     public String getTitle() { return title; }
     public String getMember() { return member; }
     public String getDate() { return date; }
@@ -915,10 +1022,11 @@ package com.dailytask;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
-import android.graphics.Color;
+import android.net.Uri;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -956,48 +1064,43 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
     @Override
     public void onBindViewHolder(@NonNull TaskViewHolder holder, int position) {
         Task task = taskList.get(position);
-
-
         String status = task.getStatus() != null ? task.getStatus() : "未完成";
         String time = task.getTime() != null ? task.getTime() : "12:00 - 13:00";
         String title = task.getTitle() != null ? task.getTitle() : "無標題任務";
         String member = task.getMember() != null ? task.getMember() : "未知成員";
         String createdBy = task.getCreatedBy() != null ? task.getCreatedBy() : "";
-
         boolean hasImages = task.getImage() != null && !task.getImage().isEmpty();
         String attachmentIcon = hasImages ? " 📎" : "";
-
         String statusLabel = status.equals("已完成") ? "[已完成] ✅ " :
                 (status.equals("已重新安排") ? "[已重排] 🔁 " : "[未完成] ⏳ ");
 
         holder.tvTaskTitle.setText(statusLabel + "[" + time + "] " + title + attachmentIcon);
         holder.tvTaskMember.setText("負責人: " + member);
 
-        if (status.equals("停用") || status.equals("已完成")) {
-            holder.tvTaskTitle.setTextColor(Color.parseColor("#999999"));
-            holder.viewMemberTag.setBackgroundColor(Color.parseColor("#BDC3C7"));
-        } else if (status.equals("已重新安排")) {
-            holder.tvTaskTitle.setTextColor(Color.parseColor("#7f8c8d"));
-            holder.viewMemberTag.setBackgroundColor(Color.parseColor("#95a5a6"));
-        } else {
-            holder.tvTaskTitle.setTextColor(Color.parseColor("#1A1A1A"));
 
-            if (member.contains("Dad") || member.contains("爸爸")) {
-                holder.viewMemberTag.setBackgroundColor(Color.parseColor("#2196F3"));
-            } else if (member.contains("Mom") || member.contains("媽媽")) {
-                holder.viewMemberTag.setBackgroundColor(Color.parseColor("#E91E63"));
-            } else if (member.contains("Helper") || member.contains("工人姐姐")) {
-                holder.viewMemberTag.setBackgroundColor(Color.parseColor("#FF9800"));
-            } else {
-                holder.viewMemberTag.setBackgroundColor(Color.parseColor("#4CAF50"));
-            }
+        holder.viewMemberTag.setImageResource(android.R.drawable.ic_menu_gallery);
+        if (createdBy != null && !createdBy.isEmpty()) {
+            db.collection("users").document(createdBy).get().addOnSuccessListener(documentSnapshot -> {
+                if (documentSnapshot.exists()) {
+                    String userIconStr = documentSnapshot.getString("user_icon");
+                    if (userIconStr != null && !userIconStr.isEmpty() && holder.viewMemberTag != null) {
+                        try {
+
+                            holder.itemView.getContext().getContentResolver().takePersistableUriPermission(
+                                    Uri.parse(userIconStr), Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                            holder.viewMemberTag.setImageURI(Uri.parse(userIconStr));
+                        } catch (Exception e) {
+
+                            holder.viewMemberTag.setImageResource(android.R.drawable.ic_menu_gallery);
+                        }
+                    }
+                }
+            });
         }
-
 
         holder.itemView.setOnClickListener(v -> {
             Context context = v.getContext();
             Intent intent = new Intent(context, EditTaskActivity.class);
-
             intent.putExtra("TASK_ID", task.getId());
             intent.putExtra("TASK_TITLE", title);
             intent.putExtra("TASK_MEMBER", member);
@@ -1008,24 +1111,18 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
             intent.putExtra("TASK_IMAGE", task.getImage() != null ? task.getImage() : "");
             intent.putExtra("CLOUD_DOC_ID", task.getCloudDocId() != null ? task.getCloudDocId() : "");
             intent.putExtra("CREATED_BY_UID", createdBy);
-
             context.startActivity(intent);
         });
 
-
         holder.itemView.setOnLongClickListener(v -> {
             if (currentUid == null || currentUid.isEmpty()) return true;
-
             db.collection("users").document(currentUid).get().addOnSuccessListener(documentSnapshot -> {
                 if (documentSnapshot.exists()) {
                     String myRole = documentSnapshot.getString("role");
-
-
                     if ("User".equals(myRole) && !currentUid.equals(createdBy)) {
                         Toast.makeText(v.getContext(), "🛑 權限不足！普通成員無法刪除他人的任務", Toast.LENGTH_SHORT).show();
                         return;
                     }
-
                     new AlertDialog.Builder(v.getContext())
                             .setTitle("刪除雲端任務")
                             .setMessage("確定要從群組雲端刪除「" + title + "」嗎？")
@@ -1048,12 +1145,12 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
     }
 
     static class TaskViewHolder extends RecyclerView.ViewHolder {
-        View viewMemberTag;
+        ImageView viewMemberTag; // 🎯 修正：從 View 改為 ImageView，用來直接顯示頭像 Icon！
         TextView tvTaskTitle, tvTaskMember;
 
         public TaskViewHolder(@NonNull View itemView) {
             super(itemView);
-            viewMemberTag = itemView.findViewById(R.id.viewMemberTag);
+            viewMemberTag = itemView.findViewById(R.id.viewMemberTag); // 🎯 對應你的 item_task.xml 裡左側的黑色圓圈
             tvTaskTitle = itemView.findViewById(R.id.tvTaskTitle);
             tvTaskMember = itemView.findViewById(R.id.tvTaskMember);
         }
@@ -1063,15 +1160,18 @@ package com.dailytask;
 
 import android.content.Intent;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -1091,6 +1191,7 @@ public class SettingsActivity extends AppCompatActivity {
     private TextView tvSettingsName, tvSettingsEmail, tvSettingsGroupCode;
     private Button btnChangePassword, btnRegenGroupCode, btnLeaveGroup, btnLogout;
     private RecyclerView rvGroupMembers;
+    private ImageView ivUserIcon; // 🎯 新增：設定頁面的個人頭像元件
 
     private FirebaseFirestore db;
     private FirebaseAuth mAuth;
@@ -1122,6 +1223,10 @@ public class SettingsActivity extends AppCompatActivity {
         btnRegenGroupCode = findViewById(R.id.btnRegenGroupCode);
         btnLeaveGroup = findViewById(R.id.btnLeaveGroup);
         btnLogout = findViewById(R.id.btnLogout);
+
+
+        ivUserIcon = findViewById(R.id.ivUserIcon);
+
         rvGroupMembers = findViewById(R.id.rvGroupMembers);
         rvGroupMembers.setLayoutManager(new LinearLayoutManager(this));
 
@@ -1129,18 +1234,21 @@ public class SettingsActivity extends AppCompatActivity {
             tvSettingsEmail.setText("Email 帳號：" + mAuth.getCurrentUser().getEmail());
         }
 
-
         fetchMyProfileAndGroup();
 
 
+        if (ivUserIcon != null) {
+            ivUserIcon.setOnClickListener(v -> {
+                Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+                intent.addCategory(Intent.CATEGORY_OPENABLE);
+                intent.setType("image/*");
+                startActivityForResult(intent, 500);
+            });
+        }
+
         btnChangePassword.setOnClickListener(v -> popupChangePasswordDialog());
-
-
         btnRegenGroupCode.setOnClickListener(v -> popupRegenCodeConfirmDialog());
-
-
         btnLeaveGroup.setOnClickListener(v -> handleLeaveGroupLogic());
-
 
         btnLogout.setOnClickListener(v -> {
             mAuth.signOut();
@@ -1158,10 +1266,20 @@ public class SettingsActivity extends AppCompatActivity {
                 String name = documentSnapshot.getString("name");
                 myRole = documentSnapshot.getString("role");
                 myGroupId = documentSnapshot.getString("group_id");
+                String userIconStr = documentSnapshot.getString("user_icon"); // 🎯 讀取頭像
 
                 tvSettingsName.setText("姓名：" + name + " (" + myRole + ")");
                 tvSettingsGroupCode.setText("🔑 家庭邀請碼：" + myGroupId);
 
+                // 🎯 渲染本地儲存的個人頭像
+                if (ivUserIcon != null && userIconStr != null && !userIconStr.isEmpty()) {
+                    try {
+                        getContentResolver().takePersistableUriPermission(Uri.parse(userIconStr), Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                        ivUserIcon.setImageURI(Uri.parse(userIconStr));
+                    } catch (Exception e) {
+                        ivUserIcon.setImageResource(android.R.drawable.ic_menu_gallery); // 防禦型預設圖
+                    }
+                }
 
                 if (!"Admin".equals(myRole)) {
                     btnRegenGroupCode.setEnabled(false);
@@ -1174,6 +1292,29 @@ public class SettingsActivity extends AppCompatActivity {
                 listenGroupMembers();
             }
         });
+    }
+
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == 500 && resultCode == RESULT_OK && data != null && data.getData() != null) {
+            Uri iconUri = data.getData();
+            final int takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION;
+            try {
+                getContentResolver().takePersistableUriPermission(iconUri, takeFlags);
+                if (ivUserIcon != null) {
+                    ivUserIcon.setImageURI(iconUri);
+                }
+
+
+                db.collection("users").document(currentUid).update("user_icon", iconUri.toString())
+                        .addOnSuccessListener(aVoid -> Toast.makeText(SettingsActivity.this, "个人 Icon 更换成功！", Toast.LENGTH_SHORT).show());
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     private void listenGroupMembers() {
@@ -1189,7 +1330,6 @@ public class SettingsActivity extends AppCompatActivity {
                 });
     }
 
-
     private void popupRegenCodeConfirmDialog() {
         new AlertDialog.Builder(this)
                 .setTitle("🔄 警告：刷新家庭邀請碼")
@@ -1198,36 +1338,30 @@ public class SettingsActivity extends AppCompatActivity {
                     String newCode = generateRandomGroupCode();
                     WriteBatch batch = db.batch();
 
-                    // 1. 刪除舊群組，掛載新群組
                     batch.delete(db.collection("groups").document(myGroupId));
                     Map<String, Object> newGroupData = new HashMap<>();
                     newGroupData.put("owner_uid", currentUid);
                     newGroupData.put("group_code", newCode);
                     batch.set(db.collection("groups").document(newCode), newGroupData);
 
-                    // 2. 批量更新目前組內所有成員的 group_id
                     for (DocumentSnapshot memberDoc : memberDocList) {
                         batch.update(db.collection("users").document(memberDoc.getId()), "group_id", newCode);
                     }
 
-                    // 3. 🛡️ 智慧防禦連帶遷移：去雲端撈取所有屬於「舊群組」的任務，一併批量安全更新！
                     db.collection("tasks").whereEqualTo("group_id", myGroupId).get()
                             .addOnSuccessListener(taskSnapshots -> {
                                 for (DocumentSnapshot taskDoc : taskSnapshots) {
                                     batch.update(db.collection("tasks").document(taskDoc.getId()), "group_id", newCode);
                                 }
-
-                                // 📡 4. 當所有資料（群組、用戶、任務）的修改包裝完畢，一次過原子化發射上雲端
                                 batch.commit().addOnSuccessListener(aVoid -> {
                                     Toast.makeText(SettingsActivity.this, "邀請碼變更成功，全體歷史任務已安全同步遷移！", Toast.LENGTH_SHORT).show();
-                                    myGroupId = newCode; // 更新本地群組變數
-                                    fetchMyProfileAndGroup(); // 重新整理 UI 畫面
+                                    myGroupId = newCode;
+                                    fetchMyProfileAndGroup();
                                 }).addOnFailureListener(e -> {
                                     Toast.makeText(SettingsActivity.this, "變更失敗: " + e.getMessage(), Toast.LENGTH_LONG).show();
                                 });
                             })
                             .addOnFailureListener(e -> {
-                                // 防禦：萬一撈取任務失敗，依然執行使用者與群組基本代碼更換
                                 batch.commit().addOnSuccessListener(aVoid -> {
                                     Toast.makeText(SettingsActivity.this, "邀請碼已更換，但任務遷移遇到異常。", Toast.LENGTH_SHORT).show();
                                     myGroupId = newCode;
@@ -1238,7 +1372,6 @@ public class SettingsActivity extends AppCompatActivity {
                 .setNegativeButton("取消", null).show();
     }
 
-
     private void handleLeaveGroupLogic() {
         int adminCount = 0;
         for (DocumentSnapshot doc : memberDocList) {
@@ -1246,7 +1379,6 @@ public class SettingsActivity extends AppCompatActivity {
                 adminCount++;
             }
         }
-
 
         if ("Admin".equals(myRole) && adminCount <= 1 && memberDocList.size() > 1) {
             Toast.makeText(this, "🛑 退出拒絕！你是目前唯一的管理者，請先將其他成員升級為 Admin 才能退出！", Toast.LENGTH_LONG).show();
@@ -1261,7 +1393,6 @@ public class SettingsActivity extends AppCompatActivity {
                     if (memberDocList.size() <= 1) {
                         db.collection("groups").document(myGroupId).delete();
                     }
-
 
                     Map<String, Object> updates = new HashMap<>();
                     updates.put("group_id", "");
@@ -1283,17 +1414,14 @@ public class SettingsActivity extends AppCompatActivity {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("🔒 修改安全登入密碼");
 
-
         android.widget.LinearLayout layout = new android.widget.LinearLayout(this);
         layout.setOrientation(android.widget.LinearLayout.VERTICAL);
         layout.setPadding(60, 40, 60, 20);
-
 
         final EditText etNewPassword = new EditText(this);
         etNewPassword.setHint("請輸入新密碼 (至少 6 位數)");
         etNewPassword.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
         layout.addView(etNewPassword);
-
 
         final EditText etConfirmPassword = new EditText(this);
         etConfirmPassword.setHint("請再次輸入新密碼以確認");
@@ -1302,7 +1430,7 @@ public class SettingsActivity extends AppCompatActivity {
                 android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
                 android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        params.setMargins(0, 30, 0, 0); // 上方留點空隙，比較美觀
+        params.setMargins(0, 30, 0, 0);
         etConfirmPassword.setLayoutParams(params);
         layout.addView(etConfirmPassword);
 
@@ -1312,18 +1440,15 @@ public class SettingsActivity extends AppCompatActivity {
             String newPassword = etNewPassword.getText().toString().trim();
             String confirmPassword = etConfirmPassword.getText().toString().trim();
 
-
             if (newPassword.length() < 6) {
                 Toast.makeText(SettingsActivity.this, "❌ 密碼長度不足 6 位！", Toast.LENGTH_SHORT).show();
                 return;
             }
 
             if (!newPassword.equals(confirmPassword)) {
-
                 Toast.makeText(SettingsActivity.this, "❌ 兩次輸入的密碼不一致，請重新填寫！", Toast.LENGTH_LONG).show();
                 return;
             }
-
 
             if (mAuth.getCurrentUser() != null) {
                 mAuth.getCurrentUser().updatePassword(newPassword).addOnSuccessListener(aVoid -> {
@@ -1424,12 +1549,16 @@ import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.app.TimePickerDialog;
 import android.content.ClipData;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.media.MediaPlayer;
+import android.media.MediaRecorder;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -1450,6 +1579,8 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
@@ -1460,7 +1591,8 @@ public class AddTaskActivity extends AppCompatActivity {
 
     private Spinner spinnerMember;
     private EditText etTaskTitle, etTaskNotes;
-    private Button btnSaveTask, btnSelectStartTime, btnSelectEndTime, btnAddTaskImage;
+    private Button btnSaveTask, btnSelectStartTime, btnSelectEndTime, btnAddTaskImage, btnCaptureImage;
+    private Button btnStartRecord, btnStopRecord, btnPlayRecord;
     private TextView tvSelectedTime, tvImageCount;
     private LinearLayout layoutImagePreviewContainer;
 
@@ -1474,7 +1606,13 @@ public class AddTaskActivity extends AppCompatActivity {
     private String endTime = "13:00";
     private int startHour = 12;
     private int startMinute = 0;
-    private ArrayList<String> selectedImageUris = new ArrayList<>();
+    private final ArrayList<String> selectedImageUris = new ArrayList<>();
+    private Uri cameraImageUri;
+
+
+    private MediaRecorder mediaRecorder;
+    private MediaPlayer mediaPlayer;
+    private String voiceFilePath = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -1483,8 +1621,6 @@ public class AddTaskActivity extends AppCompatActivity {
 
         mAuth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
-
-        // 🎯 核心修正 1：徹底移除了引發 IllegalStateException 重複宣告的 db.setFirestoreSettings(settings) 區塊！
 
         if (mAuth.getCurrentUser() != null) {
             currentUid = mAuth.getCurrentUser().getUid();
@@ -1496,11 +1632,21 @@ public class AddTaskActivity extends AppCompatActivity {
             getSupportActionBar().setTitle("雲端發布：新增任務");
         }
 
+        // 🎯 智慧合併權限檢查 (通知、相機、錄音)
+        ArrayList<String> permissionsNeeded = new ArrayList<>();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-                    != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, 101);
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                permissionsNeeded.add(Manifest.permission.POST_NOTIFICATIONS);
             }
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            permissionsNeeded.add(Manifest.permission.CAMERA);
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            permissionsNeeded.add(Manifest.permission.RECORD_AUDIO);
+        }
+        if (!permissionsNeeded.isEmpty()) {
+            ActivityCompat.requestPermissions(this, permissionsNeeded.toArray(new String[0]), 101);
         }
 
         selectedDate = getIntent().getStringExtra("SELECTED_DATE");
@@ -1514,8 +1660,76 @@ public class AddTaskActivity extends AppCompatActivity {
         tvSelectedTime = findViewById(R.id.tvSelectedTime);
         btnSaveTask = findViewById(R.id.btnSaveTask);
         btnAddTaskImage = findViewById(R.id.btnAddTaskImage);
+        btnCaptureImage = findViewById(R.id.btnCaptureImage);
         tvImageCount = findViewById(R.id.tvImageCount);
         layoutImagePreviewContainer = findViewById(R.id.layoutImagePreviewContainer);
+
+
+        btnStartRecord = findViewById(R.id.btnStartRecord);
+        btnStopRecord = findViewById(R.id.btnStopRecord);
+        btnPlayRecord = findViewById(R.id.btnPlayRecord);
+
+
+        voiceFilePath = getExternalCacheDir().getAbsolutePath() + "/Task_Voice_Temp.3gp";
+
+
+        btnStartRecord.setOnClickListener(v -> {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(this, "請先開通語音錄音權限！", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            try {
+                mediaRecorder = new MediaRecorder();
+                mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+                mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+                mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
+                mediaRecorder.setOutputFile(voiceFilePath);
+                mediaRecorder.prepare();
+                mediaRecorder.start();
+
+                btnStartRecord.setEnabled(false);
+                btnStopRecord.setEnabled(true);
+                btnPlayRecord.setEnabled(false);
+                Toast.makeText(this, "🎙️ 正在錄製任務語音備忘錄...", Toast.LENGTH_SHORT).show();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+
+        // ⏹️ 停止錄音事件監聽
+        btnStopRecord.setOnClickListener(v -> {
+            if (mediaRecorder != null) {
+                try {
+                    mediaRecorder.stop();
+                } catch (RuntimeException stopException) {
+                    // 防禦型 catch
+                }
+                mediaRecorder.release();
+                mediaRecorder = null;
+
+                btnStartRecord.setEnabled(true);
+                btnStopRecord.setEnabled(false);
+                btnPlayRecord.setEnabled(true);
+                Toast.makeText(this, "✅ 語音錄製完成！", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+
+        btnPlayRecord.setOnClickListener(v -> {
+            if (mediaPlayer != null) {
+                mediaPlayer.release();
+                mediaPlayer = null;
+            }
+            try {
+                mediaPlayer = new MediaPlayer();
+                mediaPlayer.setDataSource(voiceFilePath);
+                mediaPlayer.prepare();
+                mediaPlayer.start();
+                Toast.makeText(this, "🔊 正在播放任務語音備忘錄...", Toast.LENGTH_SHORT).show();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
 
         ArrayList<String> dynamicMembers = new ArrayList<>();
         dynamicMembers.add("👥 正在同步家庭成員...");
@@ -1536,6 +1750,23 @@ public class AddTaskActivity extends AppCompatActivity {
             intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
             startActivityForResult(intent, 300);
         });
+
+        if (btnCaptureImage != null) {
+            btnCaptureImage.setOnClickListener(v -> {
+                if (selectedImageUris.size() >= 10) {
+                    Toast.makeText(AddTaskActivity.this, "已達上限 10 張相片！", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                ContentValues values = new ContentValues();
+                values.put(MediaStore.Images.Media.TITLE, "DailyTask_Capture_" + System.currentTimeMillis());
+                values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+                cameraImageUri = getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+
+                Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, cameraImageUri);
+                startActivityForResult(cameraIntent, 350);
+            });
+        }
 
         btnSelectStartTime.setOnClickListener(v -> {
             Calendar calendar = Calendar.getInstance();
@@ -1586,8 +1817,6 @@ public class AddTaskActivity extends AppCompatActivity {
             String cloudDocIdStr = db.collection("tasks").document().getId();
 
             Map<String, Object> taskData = new HashMap<>();
-
-            // 🎯 核心修正 2：直接將隨機生成的字串 document.getId() 作為數據 id 傳上雲端，結構完美與模型對齊！
             taskData.put("id", cloudDocIdStr);
             taskData.put("title", title);
             taskData.put("member", member);
@@ -1596,6 +1825,14 @@ public class AddTaskActivity extends AppCompatActivity {
             taskData.put("task_notes", notes);
             taskData.put("task_status", "未完成");
             taskData.put("task_image", combinedImagesStr);
+
+
+            File recordedFile = new File(voiceFilePath);
+            if (recordedFile.exists() && btnPlayRecord.isEnabled()) {
+                taskData.put("task_voice", voiceFilePath);
+            } else {
+                taskData.put("task_voice", "");
+            }
 
             taskData.put("group_id", currentUserGroupId);
             taskData.put("created_by", currentUid != null ? currentUid : "");
@@ -1675,8 +1912,14 @@ public class AddTaskActivity extends AppCompatActivity {
                     addPreviewImageView(uri);
                 } catch (Exception e) { e.printStackTrace(); }
             }
-            tvImageCount.setText("相片附件 (最多 10 張): " + selectedImageUris.size() + "/10");
         }
+        if (requestCode == 350 && resultCode == RESULT_OK) {
+            if (cameraImageUri != null) {
+                selectedImageUris.add(cameraImageUri.toString());
+                addPreviewImageView(cameraImageUri);
+            }
+        }
+        tvImageCount.setText("相片附件 (最多 10 張): " + selectedImageUris.size() + "/10");
     }
 
     private void addPreviewImageView(Uri uri) {
@@ -1728,6 +1971,19 @@ public class AddTaskActivity extends AppCompatActivity {
             }
         } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (mediaRecorder != null) {
+            mediaRecorder.release();
+            mediaRecorder = null;
+        }
+        if (mediaPlayer != null) {
+            mediaPlayer.release();
+            mediaPlayer = null;
         }
     }
 
