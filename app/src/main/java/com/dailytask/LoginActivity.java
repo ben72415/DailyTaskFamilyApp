@@ -7,18 +7,20 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
+
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.firestore.FirebaseFirestore;
 
 public class LoginActivity extends AppCompatActivity {
-
 
     private EditText etLoginName, etLoginEmail, etLoginPassword, etLoginConfirmPassword;
     private Button btnMainAction;
     private TextView tvLoginSubtitle, tvSwitchMode;
 
     private FirebaseAuth mAuth;
+    private FirebaseFirestore db; // 🎯 修正：宣告雲端資料庫變數 db
     private boolean isLoginMode = true; // 標記目前是登入模式還是註冊模式
 
     @Override
@@ -28,10 +30,19 @@ public class LoginActivity extends AppCompatActivity {
 
         mAuth = FirebaseAuth.getInstance();
 
+
+        db = FirebaseFirestore.getInstance();
+
+
+        com.google.firebase.firestore.FirebaseFirestoreSettings settings =
+                new com.google.firebase.firestore.FirebaseFirestoreSettings.Builder()
+                        .setLocalCacheSettings(com.google.firebase.firestore.PersistentCacheSettings.newBuilder().build())
+                        .build();
+        db.setFirestoreSettings(settings);
+
         if (getSupportActionBar() != null) {
             getSupportActionBar().hide();
         }
-
 
         etLoginName = findViewById(R.id.etLoginName);
         etLoginEmail = findViewById(R.id.etLoginEmail);
@@ -41,26 +52,24 @@ public class LoginActivity extends AppCompatActivity {
         tvLoginSubtitle = findViewById(R.id.tvLoginSubtitle);
         tvSwitchMode = findViewById(R.id.tvSwitchMode);
 
-
         tvSwitchMode.setOnClickListener(v -> {
             isLoginMode = !isLoginMode;
             if (isLoginMode) {
                 tvLoginSubtitle.setText("智能家庭任務協同系統");
                 etLoginName.setVisibility(View.GONE);
-                etLoginConfirmPassword.setVisibility(View.GONE); // 登入模式下隱藏
+                etLoginConfirmPassword.setVisibility(View.GONE);
                 btnMainAction.setText("安全登入");
                 btnMainAction.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#2196F3")));
                 tvSwitchMode.setText("沒有帳號？點擊此處切換至「新增註冊」");
             } else {
                 tvLoginSubtitle.setText("建立全新家庭成員帳號");
                 etLoginName.setVisibility(View.VISIBLE);
-                etLoginConfirmPassword.setVisibility(View.VISIBLE); // 註冊模式下顯示
+                etLoginConfirmPassword.setVisibility(View.VISIBLE);
                 btnMainAction.setText("立即註冊");
                 btnMainAction.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#4CAF50")));
                 tvSwitchMode.setText("已有帳號？點擊此處切換至「返回登入」");
             }
         });
-
 
         btnMainAction.setOnClickListener(v -> {
             String email = etLoginEmail.getText().toString().trim();
@@ -78,7 +87,6 @@ public class LoginActivity extends AppCompatActivity {
             }
 
             if (isLoginMode) {
-
                 mAuth.signInWithEmailAndPassword(email, password)
                         .addOnSuccessListener(authResult -> {
                             Toast.makeText(LoginActivity.this, "登入成功！歡迎回來", Toast.LENGTH_SHORT).show();
@@ -88,13 +96,13 @@ public class LoginActivity extends AppCompatActivity {
                         })
                         .addOnFailureListener(e -> Toast.makeText(LoginActivity.this, "登入失敗: " + e.getMessage(), Toast.LENGTH_LONG).show());
             } else {
-                // ------ 📝 100% 保留原有註冊與防錯功能 ------
+
                 if (name.isEmpty()) {
                     Toast.makeText(LoginActivity.this, "註冊必須填寫用戶姓名！", Toast.LENGTH_SHORT).show();
                     return;
                 }
 
-                // 雙重密碼一致性攔截鎖
+
                 if (!password.equals(confirmPassword)) {
                     Toast.makeText(LoginActivity.this, "❌ 兩次輸入的密碼不相同，請重新核對！", Toast.LENGTH_LONG).show();
                     return;
