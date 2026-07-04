@@ -72,7 +72,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:layout_marginEnd="6dp"
-                    android:text="⏰ Set Start Time"
+                    android:text="Set Start Time"
                     android:backgroundTint="#78909C" />
 
                 <Button
@@ -81,7 +81,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:layout_marginStart="6dp"
-                    android:text="⏰ Set End Time"
+                    android:text="Set End Time"
                     android:backgroundTint="#78909C" />
             </LinearLayout>
 
@@ -116,7 +116,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="🎙️ Voice Memo"
+                android:text="Voice Memo"
                 android:textSize="16sp"
                 android:textStyle="bold"
                 android:textColor="#555555"
@@ -135,7 +135,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:layout_marginEnd="4dp"
-                    android:text="🔴 Record"
+                    android:text="Record"
                     android:textSize="14sp"
                     android:textStyle="bold"
                     android:backgroundTint="#E74C3C"
@@ -149,7 +149,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:layout_marginHorizontal="2dp"
-                    android:text="⏹️ Stop"
+                    android:text="Stop"
                     android:textSize="14sp"
                     android:textStyle="bold"
                     android:backgroundTint="#7F8C8D"
@@ -164,7 +164,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:layout_marginStart="4dp"
-                    android:text="▶️ Play"
+                    android:text="Play"
                     android:textSize="14sp"
                     android:textStyle="bold"
                     android:backgroundTint="#2ECC71"
@@ -197,7 +197,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:layout_marginEnd="6dp"
-                    android:text="🖼️ Import"
+                    android:text="Import"
                     android:textSize="14sp"
                     android:textStyle="bold"
                     android:backgroundTint="#2196F3"
@@ -211,7 +211,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:layout_marginStart="6dp"
-                    android:text="📸 Camera"
+                    android:text="Camera"
                     android:textSize="14sp"
                     android:textStyle="bold"
                     android:backgroundTint="#9C27B0"
@@ -242,7 +242,7 @@
         android:id="@+id/btnSaveTask"
         android:layout_width="match_parent"
         android:layout_height="55dp"
-        android:text="Publish Task to Family Cloud"
+        android:text="Publish Task"
         android:textSize="18sp"
         android:textStyle="bold"
         android:backgroundTint="#4CAF50"

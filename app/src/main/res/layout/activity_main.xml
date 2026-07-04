@@ -4,7 +4,6 @@
     android:layout_height="match_parent"
     android:background="#F5F5F5">
 
-
     <RelativeLayout
         android:id="@+id/layoutHeader"
         android:layout_width="match_parent"
@@ -15,23 +14,23 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_centerVertical="true"
+            android:layout_alignParentBottom="true"
+            android:layout_marginBottom="18dp"
             android:text="Family Dashboard"
             android:textColor="#FFFFFF"
-            android:textSize="18sp"
+            android:textSize="15sp"
             android:textStyle="bold" />
 
         <ImageButton
             android:id="@+id/btnMainSettings"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
             android:layout_alignParentRight="true"
             android:layout_centerVertical="true"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@android:drawable/ic_menu_manage"
             android:contentDescription="Settings" />
     </RelativeLayout>
-
 
     <CalendarView
         android:id="@+id/mainCalendarView"
@@ -40,7 +39,6 @@
         android:layout_below="@id/layoutHeader"
         android:background="#FFFFFF"
         android:elevation="2dp" />
-
 
     <TextView
         android:id="@+id/tvListLabel"
@@ -52,7 +50,6 @@
         android:textSize="14sp"
         android:textStyle="bold"
         android:padding="12dp"/>
-
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvTasks"

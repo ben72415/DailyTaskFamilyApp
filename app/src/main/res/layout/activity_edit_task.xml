@@ -22,12 +22,12 @@
             android:textStyle="bold"
             android:layout_marginBottom="15dp"/>
 
-        <!-- 任務狀態複選框 / Workflow Status Status -->
+
         <CheckBox
             android:id="@+id/cbEditStatus"
             android:layout_width="match_parent"
             android:layout_height="48dp"
-            android:text="Mark this workflow task as [COMPLETED]"
+            android:text="COMPLETED"
             android:textSize="15sp"
             android:textColor="#2E7D32"
             android:textStyle="bold"
@@ -58,7 +58,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="🎙️ Supplemental Voice Memo"
+            android:text="Supplemental Voice Memo"
             android:textColor="#555555"
             android:textSize="14sp"
             android:layout_marginBottom="5dp"/>
@@ -121,7 +121,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="🖼️ Add Photo"
+                android:text="Add Photo"
                 android:backgroundTint="#1976D2"
                 android:layout_marginRight="4dp"/>
 
@@ -130,7 +130,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="📷 Snap"
+                android:text="Camera"
                 android:backgroundTint="#8E24AA"
                 android:layout_marginLeft="4dp"/>
         </LinearLayout>
@@ -149,12 +149,12 @@
                 android:padding="4dp"/>
         </HorizontalScrollView>
 
-        <!-- 核心操作按鈕群組 / Core Operations Buttons -->
+
         <Button
             android:id="@+id/btnEditReschedule"
             android:layout_width="match_parent"
             android:layout_height="50dp"
-            android:text="📅 Reschedule Date &amp; Time"
+            android:text="Reschedule Date &amp; Time"
             android:backgroundTint="#FF9800"
             android:textColor="#FFFFFF"
             android:textStyle="bold"
@@ -164,7 +164,7 @@
             android:id="@+id/btnEditSaveTask"
             android:layout_width="match_parent"
             android:layout_height="52dp"
-            android:text="Save Consolidated Changes"
+            android:text="Save"
             android:backgroundTint="#4CAF50"
             android:textColor="#FFFFFF"
             android:textStyle="bold"/>

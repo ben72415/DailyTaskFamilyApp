@@ -55,14 +55,13 @@
             android:text="Email: Fetching..."
             android:textColor="#666666"
             android:textSize="14sp"
-            android:layout_bottom="6dp"
             android:layout_marginBottom="6dp"/>
 
         <TextView
             android:id="@+id/tvSettingsGroupCode"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="🔑 Family Invite Code: Fetching..."
+            android:text="Family Invite Code: Fetching..."
             android:textColor="#1565C0"
             android:textSize="15sp"
             android:textStyle="bold"
@@ -73,7 +72,7 @@
             android:id="@+id/btnChangePassword"
             android:layout_width="match_parent"
             android:layout_height="48dp"
-            android:text="Update Security Password"
+            android:text="Cbange Password"
             android:backgroundTint="#607D8B"
             android:layout_marginBottom="8dp"/>
 
@@ -81,7 +80,7 @@
             android:id="@+id/btnRegenGroupCode"
             android:layout_width="match_parent"
             android:layout_height="48dp"
-            android:text="🔄 Refresh Family Invite Code"
+            android:text="Refresh Family Invite Code"
             android:backgroundTint="#2980B9"
             android:layout_marginBottom="8dp"/>
 
@@ -89,7 +88,7 @@
             android:id="@+id/btnLeaveGroup"
             android:layout_width="match_parent"
             android:layout_height="48dp"
-            android:text="🏃‍♂️ Leave Current Family Group"
+            android:text="Leave Current Family Group"
             android:backgroundTint="#E67E22"
             android:layout_marginBottom="20dp"/>
 

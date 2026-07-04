@@ -51,18 +51,17 @@
         android:paddingHorizontal="10dp"
         android:background="@android:drawable/editbox_background"/>
 
-    <!-- 密碼輸入框 / Password Box -->
+
     <EditText
         android:id="@+id/etLoginPassword"
         android:layout_width="match_parent"
         android:layout_height="48dp"
-        android:hint="Password (min 6 characters)"
+        android:hint="Password"
         android:inputType="textPassword"
         android:layout_marginBottom="12dp"
         android:paddingHorizontal="10dp"
         android:background="@android:drawable/editbox_background"/>
 
-    <!-- 確認密碼輸入框 / Confirm Password Box -->
     <EditText
         android:id="@+id/etLoginConfirmPassword"
         android:layout_width="match_parent"
@@ -79,7 +78,7 @@
         android:id="@+id/btnMainAction"
         android:layout_width="match_parent"
         android:layout_height="50dp"
-        android:text="Secure Login"
+        android:text="Login"
         android:textSize="16sp"
         android:textStyle="bold"
         android:textColor="#FFFFFF"
