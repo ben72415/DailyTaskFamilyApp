@@ -5,12 +5,14 @@ import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.app.TimePickerDialog;
 import android.content.ClipData;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -41,7 +43,7 @@ public class AddTaskActivity extends AppCompatActivity {
 
     private Spinner spinnerMember;
     private EditText etTaskTitle, etTaskNotes;
-    private Button btnSaveTask, btnSelectStartTime, btnSelectEndTime, btnAddTaskImage;
+    private Button btnSaveTask, btnSelectStartTime, btnSelectEndTime, btnAddTaskImage, btnCaptureImage; // 🎯 新增 btnCaptureImage
     private TextView tvSelectedTime, tvImageCount;
     private LinearLayout layoutImagePreviewContainer;
 
@@ -56,6 +58,7 @@ public class AddTaskActivity extends AppCompatActivity {
     private int startHour = 12;
     private int startMinute = 0;
     private final ArrayList<String> selectedImageUris = new ArrayList<>();
+    private Uri cameraImageUri;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -75,14 +78,20 @@ public class AddTaskActivity extends AppCompatActivity {
             getSupportActionBar().setTitle("雲端發布：新增任務");
         }
 
+        // 動態權限檢查 (通知與相機)
+        ArrayList<String> permissionsNeeded = new ArrayList<>();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
-                    != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.POST_NOTIFICATIONS}, 101);
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                permissionsNeeded.add(Manifest.permission.POST_NOTIFICATIONS);
             }
         }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            permissionsNeeded.add(Manifest.permission.CAMERA);
+        }
+        if (!permissionsNeeded.isEmpty()) {
+            ActivityCompat.requestPermissions(this, permissionsNeeded.toArray(new String[0]), 101);
+        }
 
-        // 🎯 智慧接收：優先拿傳過來的日期
         selectedDate = getIntent().getStringExtra("SELECTED_DATE");
         if (selectedDate == null) selectedDate = "";
 
@@ -94,6 +103,10 @@ public class AddTaskActivity extends AppCompatActivity {
         tvSelectedTime = findViewById(R.id.tvSelectedTime);
         btnSaveTask = findViewById(R.id.btnSaveTask);
         btnAddTaskImage = findViewById(R.id.btnAddTaskImage);
+
+
+        btnCaptureImage = findViewById(R.id.btnCaptureImage);
+
         tvImageCount = findViewById(R.id.tvImageCount);
         layoutImagePreviewContainer = findViewById(R.id.layoutImagePreviewContainer);
 
@@ -104,6 +117,7 @@ public class AddTaskActivity extends AppCompatActivity {
         spinnerMember.setAdapter(adapter);
 
         updateTimeTextView();
+
 
         btnAddTaskImage.setOnClickListener(v -> {
             if (selectedImageUris.size() >= 10) {
@@ -116,6 +130,30 @@ public class AddTaskActivity extends AppCompatActivity {
             intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
             startActivityForResult(intent, 300);
         });
+
+
+        if (btnCaptureImage != null) {
+            btnCaptureImage.setOnClickListener(v -> {
+                if (selectedImageUris.size() >= 10) {
+                    Toast.makeText(AddTaskActivity.this, "已達上限 10 張相片！", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+                    Toast.makeText(this, "請先開啟相機權限！", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+
+                ContentValues values = new ContentValues();
+                values.put(MediaStore.Images.Media.TITLE, "DailyTask_Capture_" + System.currentTimeMillis());
+                values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+                cameraImageUri = getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+
+                Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, cameraImageUri);
+                startActivityForResult(cameraIntent, 350);
+            });
+        }
 
         btnSelectStartTime.setOnClickListener(v -> {
             Calendar calendar = Calendar.getInstance();
@@ -149,10 +187,8 @@ public class AddTaskActivity extends AppCompatActivity {
                 Toast.makeText(AddTaskActivity.this, "請輸入任務名稱！", Toast.LENGTH_SHORT).show();
                 return;
             }
-
-            // 🛡️ 防禦：萬一網絡延遲，直接中斷攔截提示
             if (currentUserGroupId == null || currentUserGroupId.isEmpty()) {
-                Toast.makeText(AddTaskActivity.this, "雲端家庭組安全憑證同步中，請稍候再試...", Toast.LENGTH_SHORT).show();
+                Toast.makeText(AddTaskActivity.this, "正在獲取群組資訊，請稍候再試...", Toast.LENGTH_SHORT).show();
                 return;
             }
 
@@ -168,7 +204,7 @@ public class AddTaskActivity extends AppCompatActivity {
             String cloudDocIdStr = db.collection("tasks").document().getId();
 
             Map<String, Object> taskData = new HashMap<>();
-            taskData.put("id", cloudDocIdStr); // 完美對齊 String 鏈條
+            taskData.put("id", cloudDocIdStr);
             taskData.put("title", title);
             taskData.put("member", member);
             taskData.put("task_date", selectedDate != null ? selectedDate : "");
@@ -233,6 +269,8 @@ public class AddTaskActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
+
+
         if (requestCode == 300 && resultCode == RESULT_OK && data != null) {
             final int takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION;
             if (data.getClipData() != null) {
@@ -254,8 +292,17 @@ public class AddTaskActivity extends AppCompatActivity {
                     addPreviewImageView(uri);
                 } catch (Exception e) { e.printStackTrace(); }
             }
-            tvImageCount.setText("相片附件 (最多 10 張): " + selectedImageUris.size() + "/10");
         }
+
+
+        if (requestCode == 350 && resultCode == RESULT_OK) {
+            if (cameraImageUri != null) {
+                selectedImageUris.add(cameraImageUri.toString());
+                addPreviewImageView(cameraImageUri);
+            }
+        }
+
+        tvImageCount.setText("相片附件 (最多 10 張): " + selectedImageUris.size() + "/10");
     }
 
     private void addPreviewImageView(Uri uri) {

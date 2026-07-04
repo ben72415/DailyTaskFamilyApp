@@ -53,30 +53,51 @@
                 android:textSize="16sp"
                 android:layout_marginBottom="20dp"/>
 
+            <TextView
+                android:id="@+id/tvEditImageCount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="相片附件 (長按相片可刪除): 0/10"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="#555555"
+                android:layout_marginBottom="8dp" />
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginBottom="8dp">
-
-                <TextView
-                    android:id="@+id/tvEditImageCount"
-                    android:layout_width="0dp"
-                    android:layout_weight="1"
-                    android:layout_height="wrap_content"
-                    android:text="相片附件 (長按相片可刪除): 0/10"
-                    android:textSize="16sp"
-                    android:textStyle="bold"
-                    android:textColor="#555555" />
+                android:weightSum="2"
+                android:layout_marginBottom="16dp">
 
                 <Button
                     android:id="@+id/btnEditPickImage"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:text="📷 導入/追加相片"
-                    android:textSize="12sp"
-                    android:backgroundTint="#42A5F5" />
+                    android:layout_weight="1"
+                    android:layout_marginEnd="6dp"
+                    android:text="🖼️ 導入相片"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:backgroundTint="#2196F3"
+                    android:textColor="@android:color/white"
+                    android:paddingTop="12dp"
+                    android:paddingBottom="12dp" />
+
+                <Button
+                    android:id="@+id/btnEditCaptureImage"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="6dp"
+                    android:text="📸 即時影相"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:backgroundTint="#9C27B0"
+                    android:textColor="@android:color/white"
+                    android:paddingTop="12dp"
+                    android:paddingBottom="12dp" />
+
             </LinearLayout>
 
             <HorizontalScrollView

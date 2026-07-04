@@ -1,12 +1,15 @@
 package com.dailytask;
 
+import android.Manifest;
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
 import android.content.ClipData;
+import android.content.ContentValues;
 import android.content.Intent;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.CheckBox;
@@ -19,6 +22,7 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
@@ -35,7 +39,7 @@ public class EditTaskActivity extends AppCompatActivity {
     private TextView tvEditTitleHeader, tvEditImageCount, tvPermissionWarning;
     private EditText etEditTaskNotes;
     private CheckBox cbEditStatus;
-    private Button btnEditPickImage, btnEditReschedule, btnEditSaveTask;
+    private Button btnEditPickImage, btnEditCaptureImage, btnEditReschedule, btnEditSaveTask; // 🎯 新增 btnEditCaptureImage
     private LinearLayout layoutEditImageContainer;
 
     private FirebaseFirestore db;
@@ -46,7 +50,8 @@ public class EditTaskActivity extends AppCompatActivity {
     private String createdByUid;
     private String taskId;
     private String taskTitle, taskMember, taskDate, taskTime;
-    private final ArrayList<String> editImageUris = new ArrayList<>();
+    private ArrayList<String> editImageUris = new ArrayList<>();
+    private Uri editCameraImageUri; // 🎯 暫存相機拍攝路徑
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,7 +60,6 @@ public class EditTaskActivity extends AppCompatActivity {
 
         mAuth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
-
 
         if (mAuth.getCurrentUser() != null) {
             currentUid = mAuth.getCurrentUser().getUid();
@@ -85,6 +89,10 @@ public class EditTaskActivity extends AppCompatActivity {
         etEditTaskNotes = findViewById(R.id.etEditTaskNotes);
         cbEditStatus = findViewById(R.id.cbEditStatus);
         btnEditPickImage = findViewById(R.id.btnEditPickImage);
+
+
+        btnEditCaptureImage = findViewById(R.id.btnEditCaptureImage);
+
         btnEditReschedule = findViewById(R.id.btnEditReschedule);
         btnEditSaveTask = findViewById(R.id.btnEditSaveTask);
         layoutEditImageContainer = findViewById(R.id.layoutEditImageContainer);
@@ -118,6 +126,24 @@ public class EditTaskActivity extends AppCompatActivity {
             intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
             startActivityForResult(intent, 400);
         });
+
+
+        if (btnEditCaptureImage != null) {
+            btnEditCaptureImage.setOnClickListener(v -> {
+                if (editImageUris.size() >= 10) {
+                    Toast.makeText(EditTaskActivity.this, "已達上限 10 張相片！", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                ContentValues values = new ContentValues();
+                values.put(MediaStore.Images.Media.TITLE, "DailyTask_EditCapture_" + System.currentTimeMillis());
+                values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+                editCameraImageUri = getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
+
+                Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, editCameraImageUri);
+                startActivityForResult(cameraIntent, 450); // 450 代表編輯頁相機
+            });
+        }
 
         btnEditReschedule.setOnClickListener(v -> {
             final Calendar c = Calendar.getInstance();
@@ -158,8 +184,7 @@ public class EditTaskActivity extends AppCompatActivity {
 
         btnEditSaveTask.setOnClickListener(v -> {
             String updatedNotes = etEditTaskNotes.getText().toString().trim();
-            String updatedStatus = cbEditStatus.isChecked() ? "Macro_Done" : "未完成";
-            if (cbEditStatus.isChecked()) updatedStatus = "已完成";
+            String updatedStatus = cbEditStatus.isChecked() ? "已完成" : "未完成";
             String finalImagesStr = buildCombinedImagesStr();
 
             if (cloudDocId != null) {
@@ -187,12 +212,14 @@ public class EditTaskActivity extends AppCompatActivity {
                             btnEditSaveTask.setEnabled(false);
                             btnEditReschedule.setEnabled(false);
                             btnEditPickImage.setEnabled(false);
+                            if (btnEditCaptureImage != null) btnEditCaptureImage.setEnabled(false);
                             etEditTaskNotes.setEnabled(false);
                             cbEditStatus.setEnabled(false);
 
                             btnEditSaveTask.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#BDC3C7")));
                             btnEditReschedule.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#BDC3C7")));
                             btnEditPickImage.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#BDC3C7")));
+                            if (btnEditCaptureImage != null) btnEditCaptureImage.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#BDC3C7")));
 
                             tvPermissionWarning.setText("🛑 權限提示：你是家庭普通成員(User)，無權修改其他成員指派的任務。");
                             tvPermissionWarning.setTextColor(Color.parseColor("#E74C3C"));
@@ -226,8 +253,15 @@ public class EditTaskActivity extends AppCompatActivity {
                     editImageUris.add(uri.toString());
                 } catch (Exception e) { e.printStackTrace(); }
             }
-            rebuildImagePreviews();
         }
+
+
+        if (requestCode == 450 && resultCode == RESULT_OK) {
+            if (editCameraImageUri != null) {
+                editImageUris.add(editCameraImageUri.toString());
+            }
+        }
+        rebuildImagePreviews();
     }
 
     private void rebuildImagePreviews() {
