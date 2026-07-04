@@ -2,40 +2,46 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="16dp">
+    android:padding="10dp"
+    android:background="@android:drawable/list_selector_background"
+    android:layout_marginVertical="2dp">
 
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:layout_alignParentStart="true"
-        android:layout_toStartOf="@+id/btnToggleRole">
+        android:layout_toLeftOf="@+id/btnToggleRole"
+        android:layout_alignParentLeft="true"
+        android:layout_centerVertical="true">
 
         <TextView
             android:id="@+id/tvMemberName"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="成員名字"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:textColor="#1A1A1A"/>
+            android:text="Member Name"
+            android:textColor="#222222"
+            android:textSize="15sp"
+            android:textStyle="bold"/>
 
         <TextView
             android:id="@+id/tvMemberRole"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="身份：User"
-            android:textSize="12sp"
-            android:textColor="#3498DB"/>
+            android:text="Group Role: User"
+            android:textColor="#777777"
+            android:textSize="13sp"
+            android:layout_marginTop="2dp"/>
     </LinearLayout>
 
     <Button
         android:id="@+id/btnToggleRole"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="變更權限"
-        android:textSize="12sp"
-        android:layout_alignParentEnd="true"
-        android:layout_centerInParent="true"
-        android:backgroundTint="#2ECC71"/>
+        android:layout_height="38dp"
+        android:layout_alignParentRight="true"
+        android:layout_centerVertical="true"
+        android:text="Toggle Privilege"
+        android:textSize="11sp"
+        android:backgroundTint="#78909C"
+        android:textColor="#FFFFFF"/>
+
 </RelativeLayout>

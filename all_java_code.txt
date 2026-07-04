@@ -22,19 +22,21 @@ public class AlarmReceiver extends BroadcastReceiver {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID,
-                    "家庭任務提醒",
+                    context.getString(R.string.notif_channel_name),
                     NotificationManager.IMPORTANCE_HIGH
             );
-            channel.setDescription("用於 DailyTask 家庭任務到期時的自動提醒");
+            channel.setDescription(context.getString(R.string.notif_channel_desc));
             if (notificationManager != null) {
                 notificationManager.createNotificationChannel(channel);
             }
         }
 
+        String contentText = context.getString(R.string.notif_content, taskMember, taskTitle);
+
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-                .setContentTitle("⏰ 家庭任務時間到！")
-                .setContentText("負責人 " + taskMember + " 該執行任務囉：" + taskTitle)
+                .setContentTitle(context.getString(R.string.notif_title))
+                .setContentText(contentText)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setAutoCancel(true);
 
@@ -81,22 +83,17 @@ public class GroupSetupActivity extends AppCompatActivity {
             currentUid = mAuth.getCurrentUser().getUid();
         }
 
-
         userName = getIntent().getStringExtra("USER_NAME");
-        if (userName == null || userName.isEmpty()) userName = "未知成員";
+        if (userName == null || userName.isEmpty()) userName = getString(R.string.unknown_member);
 
         btnCreateGroup = findViewById(R.id.btnCreateGroup);
         btnJoinGroup = findViewById(R.id.btnJoinGroup);
         etGroupCode = findViewById(R.id.etGroupCode);
 
-
         btnCreateGroup.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-
                 String generatedGroupCode = generateRandomGroupCode();
-
-
                 Map<String, Object> groupData = new HashMap<>();
                 groupData.put("owner_uid", currentUid);
                 groupData.put("group_code", generatedGroupCode);
@@ -106,37 +103,32 @@ public class GroupSetupActivity extends AppCompatActivity {
                         .addOnSuccessListener(new OnSuccessListener<Void>() {
                             @Override
                             public void onSuccess(Void aVoid) {
-
                                 saveUserInfoToCloud(generatedGroupCode, "Admin");
                             }
                         });
             }
         });
 
-
         btnJoinGroup.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 final String inputCode = etGroupCode.getText().toString().trim().toUpperCase();
                 if (inputCode.length() < 6) {
-                    Toast.makeText(GroupSetupActivity.this, "請輸入完整的 6 位群組代碼！", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(GroupSetupActivity.this, getString(R.string.toast_code_length_error), Toast.LENGTH_SHORT).show();
                     return;
                 }
-
 
                 db.collection("groups").document(inputCode).get()
                         .addOnSuccessListener(documentSnapshot -> {
                             if (documentSnapshot.exists()) {
-
                                 saveUserInfoToCloud(inputCode, "User");
                             } else {
-                                Toast.makeText(GroupSetupActivity.this, "該家庭代碼不存在，請重新核对！", Toast.LENGTH_LONG).show();
+                                Toast.makeText(GroupSetupActivity.this, getString(R.string.toast_code_not_found), Toast.LENGTH_LONG).show();
                             }
                         });
             }
         });
     }
-
 
     private void saveUserInfoToCloud(String groupCode, String role) {
         Map<String, Object> userData = new HashMap<>();
@@ -150,8 +142,8 @@ public class GroupSetupActivity extends AppCompatActivity {
                 .addOnSuccessListener(new OnSuccessListener<Void>() {
                     @Override
                     public void onSuccess(Void aVoid) {
-                        Toast.makeText(GroupSetupActivity.this, "家庭配置成功！身份: " + role + " | 代碼: " + groupCode, Toast.LENGTH_LONG).show();
-
+                        String msg = getString(R.string.toast_group_setup_success, role, groupCode);
+                        Toast.makeText(GroupSetupActivity.this, msg, Toast.LENGTH_LONG).show();
 
                         Intent intent = new Intent(GroupSetupActivity.this, MainActivity.class);
                         startActivity(intent);
@@ -179,11 +171,9 @@ import android.widget.Button;
 import android.widget.CalendarView;
 import android.widget.ImageButton;
 import android.widget.Toast;
-
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreSettings;
@@ -191,7 +181,6 @@ import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.LocalCacheSettings;
 import com.google.firebase.firestore.PersistentCacheSettings;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
-
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -236,7 +225,6 @@ public class MainActivity extends AppCompatActivity {
 
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
         currentDateSelected = sdf.format(new Date());
-
         mainCalendarView = findViewById(R.id.mainCalendarView);
         btnAddTask = findViewById(R.id.btnAddTask);
         btnMainSettings = findViewById(R.id.btnMainSettings);
@@ -275,7 +263,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                 })
                 .addOnFailureListener(e -> {
-                    Toast.makeText(MainActivity.this, "網絡異常，正在讀取離線緩存...", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, getString(R.string.toast_offline_cache_loading), Toast.LENGTH_SHORT).show();
                     startRealtimeTaskListening();
                 });
     }
@@ -287,23 +275,20 @@ public class MainActivity extends AppCompatActivity {
 
         if (currentUserGroupId == null || currentUserGroupId.isEmpty()) return;
 
-
         DatabaseHelper localDb = new DatabaseHelper(this);
-
         taskListenerRegistration = db.collection("tasks")
                 .whereEqualTo("group_id", currentUserGroupId)
                 .whereEqualTo("task_date", currentDateSelected)
                 .addSnapshotListener((value, error) -> {
-
 
                     if (error != null) {
                         List<Task> localTaskList = localDb.getTasksByDate(currentDateSelected);
                         if (localTaskList != null && !localTaskList.isEmpty()) {
                             taskAdapter = new TaskAdapter(localTaskList);
                             rvTasks.setAdapter(taskAdapter);
-                            Toast.makeText(MainActivity.this, "📡 處於離線狀態，已成功加載本地加密備份任務", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(MainActivity.this, getString(R.string.toast_offline_loaded_success), Toast.LENGTH_SHORT).show();
                         } else {
-                            Toast.makeText(MainActivity.this, "📴 網絡中斷且本地尚無當日快取", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(MainActivity.this, getString(R.string.toast_offline_no_cache), Toast.LENGTH_SHORT).show();
                         }
                         return;
                     }
@@ -380,7 +365,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 + COLUMN_TIME + " TEXT,"
                 + COLUMN_NOTES + " TEXT,"
                 + COLUMN_STATUS + " TEXT,"
-                + COLUMN_IMAGE + " TEXT" + ")"; // 建立 Table 時加入圖片欄位
+                + COLUMN_IMAGE + " TEXT" + ")";
         db.execSQL(CREATE_TASKS_TABLE);
     }
 
@@ -390,7 +375,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         onCreate(db);
     }
 
-    //
     public void addTask(String title, String member, String date, String time, String notes, String image) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues values = new ContentValues();
@@ -399,20 +383,19 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         values.put(COLUMN_DATE, date);
         values.put(COLUMN_TIME, time);
         values.put(COLUMN_NOTES, notes);
-        values.put(COLUMN_STATUS, "未完成"); // 預設初始狀態
-        values.put(COLUMN_IMAGE, image);     // 🚀 修正：成功將圖片路徑持久化存在本地！
+        values.put(COLUMN_STATUS, "Pending");
+        values.put(COLUMN_IMAGE, image);
 
-        long result = db.insert(TABLE_TASKS, null, values);
+        db.insert(TABLE_TASKS, null, values);
         db.close();
     }
 
-    //
     public boolean updateTask(int id, String newNotes, String newStatus, String newImage) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues values = new ContentValues();
         values.put(COLUMN_NOTES, newNotes);
         values.put(COLUMN_STATUS, newStatus);
-        values.put(COLUMN_IMAGE, newImage); // 更新附件路徑
+        values.put(COLUMN_IMAGE, newImage);
 
         int rows = db.update(TABLE_TASKS, values, COLUMN_ID + " = ?", new String[]{String.valueOf(id)});
         db.close();
@@ -470,14 +453,11 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -507,7 +487,6 @@ public class EditTaskActivity extends AppCompatActivity {
     private ArrayList<String> editImageUris = new ArrayList<>();
     private Uri editCameraImageUri;
 
-
     private MediaRecorder mediaRecorder;
     private MediaPlayer mediaPlayer;
     private String voiceFilePath = "";
@@ -526,12 +505,12 @@ public class EditTaskActivity extends AppCompatActivity {
 
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setTitle("雲端管理：任務詳情");
+            getSupportActionBar().setTitle(getString(R.string.title_edit_task_cloud));
         }
 
         taskId = getIntent().getStringExtra("TASK_ID");
         taskTitle = getIntent().getStringExtra("TASK_TITLE");
-        if (taskTitle == null) taskTitle = "無標題任務";
+        if (taskTitle == null) taskTitle = getString(R.string.untitled_task);
 
         taskMember = getIntent().getStringExtra("TASK_MEMBER");
         taskDate = getIntent().getStringExtra("TASK_DATE");
@@ -553,14 +532,11 @@ public class EditTaskActivity extends AppCompatActivity {
         btnEditSaveTask = findViewById(R.id.btnEditSaveTask);
         layoutEditImageContainer = findViewById(R.id.layoutEditImageContainer);
 
-
         btnEditStartRecord = findViewById(R.id.btnEditStartRecord);
         btnEditStopRecord = findViewById(R.id.btnEditStopRecord);
         btnEditPlayRecord = findViewById(R.id.btnEditPlayRecord);
 
-
         voiceFilePath = getExternalCacheDir().getAbsolutePath() + "/Task_Voice_Edit_Temp.3gp";
-
         tvPermissionWarning = new TextView(this);
         tvPermissionWarning.setTextSize(14);
         tvPermissionWarning.setPadding(0, 10, 0, 10);
@@ -568,15 +544,14 @@ public class EditTaskActivity extends AppCompatActivity {
             ((LinearLayout) findViewById(R.id.etEditTaskNotes).getParent()).addView(tvPermissionWarning, 2);
         }
 
-        tvEditTitleHeader.setText("任務: " + taskTitle + " (" + taskMember + ")");
+        tvEditTitleHeader.setText(getString(R.string.task_header_format, taskTitle, taskMember));
         etEditTaskNotes.setText(taskNotes);
-        cbEditStatus.setChecked("已完成".equals(taskStatus));
+        cbEditStatus.setChecked("Completed".equals(taskStatus));
 
         if (taskImagesStr != null && !taskImagesStr.isEmpty()) {
             editImageUris.addAll(Arrays.asList(taskImagesStr.split(",")));
         }
         rebuildImagePreviews();
-
 
         if (cloudDocId != null) {
             db.collection("tasks").document(cloudDocId).get().addOnSuccessListener(documentSnapshot -> {
@@ -584,12 +559,11 @@ public class EditTaskActivity extends AppCompatActivity {
                     String cloudVoicePath = documentSnapshot.getString("task_voice");
                     if (cloudVoicePath != null && !cloudVoicePath.isEmpty()) {
                         voiceFilePath = cloudVoicePath;
-                        btnEditPlayRecord.setEnabled(true); // 有歷史錄音，直接啟用播放按鈕
+                        btnEditPlayRecord.setEnabled(true);
                     }
                 }
             });
         }
-
 
         btnEditStartRecord.setOnClickListener(v -> {
             try {
@@ -604,10 +578,9 @@ public class EditTaskActivity extends AppCompatActivity {
                 btnEditStartRecord.setEnabled(false);
                 btnEditStopRecord.setEnabled(true);
                 btnEditPlayRecord.setEnabled(false);
-                Toast.makeText(this, "🎙️ 正在補錄語音說明...", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.toast_recording_edit_started), Toast.LENGTH_SHORT).show();
             } catch (IOException e) { e.printStackTrace(); }
         });
-
 
         btnEditStopRecord.setOnClickListener(v -> {
             if (mediaRecorder != null) {
@@ -617,10 +590,9 @@ public class EditTaskActivity extends AppCompatActivity {
                 btnEditStartRecord.setEnabled(true);
                 btnEditStopRecord.setEnabled(false);
                 btnEditPlayRecord.setEnabled(true);
-                Toast.makeText(this, "✅ 語音補錄完成！", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.toast_recording_edit_finished), Toast.LENGTH_SHORT).show();
             }
         });
-
 
         btnEditPlayRecord.setOnClickListener(v -> {
             try {
@@ -629,7 +601,7 @@ public class EditTaskActivity extends AppCompatActivity {
                 mediaPlayer.setDataSource(voiceFilePath);
                 mediaPlayer.prepare();
                 mediaPlayer.start();
-                Toast.makeText(this, "🔊 正在播放任務語音...", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.toast_recording_playing), Toast.LENGTH_SHORT).show();
             } catch (IOException e) { e.printStackTrace(); }
         });
 
@@ -637,7 +609,7 @@ public class EditTaskActivity extends AppCompatActivity {
 
         btnEditPickImage.setOnClickListener(v -> {
             if (editImageUris.size() >= 10) {
-                Toast.makeText(EditTaskActivity.this, "已達上限 10 張相片！", Toast.LENGTH_SHORT).show();
+                Toast.makeText(EditTaskActivity.this, getString(R.string.toast_photo_limit_reached), Toast.LENGTH_SHORT).show();
                 return;
             }
             Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
@@ -650,7 +622,7 @@ public class EditTaskActivity extends AppCompatActivity {
         if (btnEditCaptureImage != null) {
             btnEditCaptureImage.setOnClickListener(v -> {
                 if (editImageUris.size() >= 10) {
-                    Toast.makeText(EditTaskActivity.this, "已達上限 10 張相片！", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(EditTaskActivity.this, getString(R.string.toast_photo_limit_reached), Toast.LENGTH_SHORT).show();
                     return;
                 }
                 ContentValues values = new ContentValues();
@@ -680,30 +652,29 @@ public class EditTaskActivity extends AppCompatActivity {
                             Map<String, Object> updates = new HashMap<>();
                             updates.put("task_date", newDate);
                             updates.put("task_time", newTimeRange);
-                            updates.put("task_status", "已重新安排");
+                            updates.put("task_status", "Rescheduled"); // 改為英文
                             updates.put("task_notes", etEditTaskNotes.getText().toString().trim());
                             updates.put("task_image", buildCombinedImagesStr());
-
                             db.collection("tasks").document(cloudDocId).update(updates)
                                     .addOnSuccessListener(aVoid -> {
-                                        Toast.makeText(EditTaskActivity.this, "雲端排程已更新至 " + newDate, Toast.LENGTH_LONG).show();
+                                        Toast.makeText(EditTaskActivity.this, getString(R.string.toast_cloud_schedule_updated, newDate), Toast.LENGTH_LONG).show();
                                         finish();
                                     });
                         }
                     }, startHour + 1, startMinute, true);
-                    endTimePicker.setTitle("⏰ 請設定【新結束時間】");
+                    endTimePicker.setTitle(getString(R.string.dialog_time_picker_end));
                     endTimePicker.show();
                 }, c.get(Calendar.HOUR_OF_DAY), c.get(Calendar.MINUTE), true);
-                startTimePicker.setTitle("⏰ 請設定【新開始時間】");
+                startTimePicker.setTitle(getString(R.string.dialog_time_picker_start));
                 startTimePicker.show();
             }, c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH));
-            datePickerDialog.setTitle("📅 請選擇【新執行日期】");
+            datePickerDialog.setTitle(getString(R.string.dialog_date_picker));
             datePickerDialog.show();
         });
 
         btnEditSaveTask.setOnClickListener(v -> {
             String updatedNotes = etEditTaskNotes.getText().toString().trim();
-            String updatedStatus = cbEditStatus.isChecked() ? "已完成" : "未完成";
+            String updatedStatus = cbEditStatus.isChecked() ? "Completed" : "Pending";
             String finalImagesStr = buildCombinedImagesStr();
 
             if (cloudDocId != null) {
@@ -712,7 +683,6 @@ public class EditTaskActivity extends AppCompatActivity {
                 updates.put("task_status", updatedStatus);
                 updates.put("task_image", finalImagesStr);
 
-
                 File vFile = new File(voiceFilePath);
                 if (vFile.exists() && btnEditPlayRecord.isEnabled()) {
                     updates.put("task_voice", voiceFilePath);
@@ -720,7 +690,7 @@ public class EditTaskActivity extends AppCompatActivity {
 
                 db.collection("tasks").document(cloudDocId).update(updates)
                         .addOnSuccessListener(aVoid -> {
-                            Toast.makeText(EditTaskActivity.this, "雲端修改同步成功！", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(EditTaskActivity.this, getString(R.string.toast_cloud_edit_success), Toast.LENGTH_SHORT).show();
                             finish();
                         });
             }
@@ -739,10 +709,8 @@ public class EditTaskActivity extends AppCompatActivity {
                             btnEditPickImage.setEnabled(false);
                             if (btnEditCaptureImage != null) btnEditCaptureImage.setEnabled(false);
 
-
                             btnEditStartRecord.setEnabled(false);
                             btnEditStopRecord.setEnabled(false);
-
                             etEditTaskNotes.setEnabled(false);
                             cbEditStatus.setEnabled(false);
 
@@ -751,10 +719,10 @@ public class EditTaskActivity extends AppCompatActivity {
                             btnEditPickImage.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#BDC3C7")));
                             if (btnEditCaptureImage != null) btnEditCaptureImage.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#BDC3C7")));
 
-                            tvPermissionWarning.setText("🛑 權限提示：你是家庭普通成員(User)，無權修改其他成員指派的任務。");
+                            tvPermissionWarning.setText(getString(R.string.permission_denied_warning));
                             tvPermissionWarning.setTextColor(Color.parseColor("#E74C3C"));
                         } else {
-                            tvPermissionWarning.setText("🔓 權限核准：你是 " + myRole + "，擁有本任務的完整編輯權限。");
+                            tvPermissionWarning.setText(getString(R.string.permission_approved_success, myRole));
                             tvPermissionWarning.setTextColor(Color.parseColor("#27AE60"));
                         }
                     }
@@ -794,11 +762,11 @@ public class EditTaskActivity extends AppCompatActivity {
 
     private void rebuildImagePreviews() {
         layoutEditImageContainer.removeAllViews();
-        tvEditImageCount.setText("相片附件 (長按相片可刪除): " + editImageUris.size() + "/10");
+        tvEditImageCount.setText(getString(R.string.photo_attachment_delete_hint, editImageUris.size()));
 
         if (editImageUris.isEmpty()) {
             TextView tvNoImg = new TextView(this);
-            tvNoImg.setText("(無相片附件)");
+            tvNoImg.setText(getString(R.string.no_photo_attachments));
             tvNoImg.setPadding(20, 20, 20, 20);
             layoutEditImageContainer.addView(tvNoImg);
             return;
@@ -825,13 +793,13 @@ public class EditTaskActivity extends AppCompatActivity {
                 if (!btnEditPickImage.isEnabled()) return true;
 
                 new AlertDialog.Builder(EditTaskActivity.this)
-                        .setTitle("刪除相片")
-                        .setMessage("確定要移走這張相片附件嗎？")
-                        .setPositiveButton("確定", (dialog, which) -> {
+                        .setTitle(getString(R.string.dialog_delete_photo_title))
+                        .setMessage(getString(R.string.dialog_delete_photo_msg))
+                        .setPositiveButton(getString(R.string.action_confirm), (dialog, which) -> {
                             editImageUris.remove(index);
                             rebuildImagePreviews();
                         })
-                        .setNegativeButton("取消", null).show();
+                        .setNegativeButton(getString(R.string.action_cancel), null).show();
                 return true;
             });
             layoutEditImageContainer.addView(imageView);
@@ -869,9 +837,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import androidx.appcompat.app.AppCompatActivity;
-
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreSettings;
@@ -891,19 +857,15 @@ public class LoginActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
-
         mAuth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
 
-        // 開啟現代化 Firebase 離線快取持久化設定
         FirebaseFirestoreSettings settings = new FirebaseFirestoreSettings.Builder()
                 .setLocalCacheSettings(PersistentCacheSettings.newBuilder().build())
                 .build();
         db.setFirestoreSettings(settings);
 
-
         if (mAuth.getCurrentUser() != null) {
-
             Intent intent = new Intent(LoginActivity.this, MainActivity.class);
             startActivity(intent);
             finish();
@@ -925,19 +887,19 @@ public class LoginActivity extends AppCompatActivity {
         tvSwitchMode.setOnClickListener(v -> {
             isLoginMode = !isLoginMode;
             if (isLoginMode) {
-                tvLoginSubtitle.setText("智能家庭任務協同系統");
+                tvLoginSubtitle.setText("Smart Family Task Collaboration System");
                 etLoginName.setVisibility(View.GONE);
                 etLoginConfirmPassword.setVisibility(View.GONE);
-                btnMainAction.setText("安全登入");
+                btnMainAction.setText("Secure Login");
                 btnMainAction.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#2196F3")));
-                tvSwitchMode.setText("沒有帳號？點擊此處切換至「新增註冊」");
+                tvSwitchMode.setText("Don\'t have an account? Tap here to Register");
             } else {
-                tvLoginSubtitle.setText("建立全新家庭成員帳號");
+                tvLoginSubtitle.setText("Create New Family Member Account");
                 etLoginName.setVisibility(View.VISIBLE);
                 etLoginConfirmPassword.setVisibility(View.VISIBLE);
-                btnMainAction.setText("立即註冊");
+                btnMainAction.setText("Register Now");
                 btnMainAction.setBackgroundTintList(android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#4CAF50")));
-                tvSwitchMode.setText("已有帳號？點擊此處切換至「返回登入」");
+                tvSwitchMode.setText("Already have an account? Tap here to Login");
             }
         });
 
@@ -948,43 +910,43 @@ public class LoginActivity extends AppCompatActivity {
             String name = etLoginName.getText().toString().trim();
 
             if (email.isEmpty() || password.isEmpty()) {
-                Toast.makeText(LoginActivity.this, "請填寫 Email 與密碼！", Toast.LENGTH_SHORT).show();
+                Toast.makeText(LoginActivity.this, getString(R.string.toast_login_empty_error), Toast.LENGTH_SHORT).show();
                 return;
             }
             if (password.length() < 6) {
-                Toast.makeText(LoginActivity.this, "密碼長度至少需要 6 位數！", Toast.LENGTH_SHORT).show();
+                Toast.makeText(LoginActivity.this, getString(R.string.toast_login_length_error), Toast.LENGTH_SHORT).show();
                 return;
             }
 
             if (isLoginMode) {
                 mAuth.signInWithEmailAndPassword(email, password)
                         .addOnSuccessListener(authResult -> {
-                            Toast.makeText(LoginActivity.this, "登入成功！歡迎回來", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(LoginActivity.this, getString(R.string.toast_login_success), Toast.LENGTH_SHORT).show();
                             Intent intent = new Intent(LoginActivity.this, MainActivity.class);
                             startActivity(intent);
                             finish();
                         })
-                        .addOnFailureListener(e -> Toast.makeText(LoginActivity.this, "登入失敗: " + e.getMessage(), Toast.LENGTH_LONG).show());
+                        .addOnFailureListener(e -> Toast.makeText(LoginActivity.this, getString(R.string.toast_login_failed, e.getMessage()), Toast.LENGTH_LONG).show());
             } else {
                 if (name.isEmpty()) {
-                    Toast.makeText(LoginActivity.this, "註冊必須填寫用戶姓名！", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(LoginActivity.this, getString(R.string.toast_reg_name_empty), Toast.LENGTH_SHORT).show();
                     return;
                 }
 
                 if (!password.equals(confirmPassword)) {
-                    Toast.makeText(LoginActivity.this, "❌ 兩次輸入的密碼不相同，請重新核對！", Toast.LENGTH_LONG).show();
+                    Toast.makeText(LoginActivity.this, getString(R.string.toast_password_mismatch), Toast.LENGTH_LONG).show();
                     return;
                 }
 
                 mAuth.createUserWithEmailAndPassword(email, password)
                         .addOnSuccessListener(authResult -> {
-                            Toast.makeText(LoginActivity.this, "帳號建立成功！", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(LoginActivity.this, getString(R.string.toast_reg_success), Toast.LENGTH_SHORT).show();
                             Intent intent = new Intent(LoginActivity.this, GroupSetupActivity.class);
                             intent.putExtra("USER_NAME", name);
                             startActivity(intent);
                             finish();
                         })
-                        .addOnFailureListener(e -> Toast.makeText(LoginActivity.this, "註冊失敗: " + e.getMessage(), Toast.LENGTH_LONG).show());
+                        .addOnFailureListener(e -> Toast.makeText(LoginActivity.this, getString(R.string.toast_reg_failed, e.getMessage()), Toast.LENGTH_LONG).show());
             }
         });
     }
@@ -1042,13 +1004,10 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
-
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
-
 import java.util.List;
 
 public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder> {
@@ -1077,33 +1036,32 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
     @Override
     public void onBindViewHolder(@NonNull TaskViewHolder holder, int position) {
         Task task = taskList.get(position);
-        String status = task.getStatus() != null ? task.getStatus() : "未完成";
+        String status = task.getStatus() != null ? task.getStatus() : "Pending";
         String time = task.getTime() != null ? task.getTime() : "12:00 - 13:00";
-        String title = task.getTitle() != null ? task.getTitle() : "無標題任務";
-        String member = task.getMember() != null ? task.getMember() : "未知成員";
+        String title = task.getTitle() != null ? task.getTitle() : holder.itemView.getContext().getString(R.string.untitled_task);
+        String member = task.getMember() != null ? task.getMember() : holder.itemView.getContext().getString(R.string.unknown_member);
         String createdBy = task.getCreatedBy() != null ? task.getCreatedBy() : "";
         boolean hasImages = task.getImage() != null && !task.getImage().isEmpty();
         String attachmentIcon = hasImages ? " 📎" : "";
-        String statusLabel = status.equals("已完成") ? "[已完成] ✅ " :
-                (status.equals("已重新安排") ? "[已重排] 🔁 " : "[未完成] ⏳ ");
+
+        // 轉換為英文狀態標籤
+        String statusLabel = status.equals("Completed") ? "[Completed] ✅ " :
+                (status.equals("Rescheduled") ? "[Rescheduled] 🔁 " : "[Pending] ⏳ ");
 
         holder.tvTaskTitle.setText(statusLabel + "[" + time + "] " + title + attachmentIcon);
-        holder.tvTaskMember.setText("負責人: " + member);
-
+        holder.tvTaskMember.setText("Assignee: " + member);
 
         holder.viewMemberTag.setImageResource(android.R.drawable.ic_menu_gallery);
-        if (createdBy != null && !createdBy.isEmpty()) {
+        if (!createdBy.isEmpty()) {
             db.collection("users").document(createdBy).get().addOnSuccessListener(documentSnapshot -> {
                 if (documentSnapshot.exists()) {
                     String userIconStr = documentSnapshot.getString("user_icon");
                     if (userIconStr != null && !userIconStr.isEmpty() && holder.viewMemberTag != null) {
                         try {
-
                             holder.itemView.getContext().getContentResolver().takePersistableUriPermission(
                                     Uri.parse(userIconStr), Intent.FLAG_GRANT_READ_URI_PERMISSION);
                             holder.viewMemberTag.setImageURI(Uri.parse(userIconStr));
                         } catch (Exception e) {
-
                             holder.viewMemberTag.setImageResource(android.R.drawable.ic_menu_gallery);
                         }
                     }
@@ -1129,23 +1087,24 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
 
         holder.itemView.setOnLongClickListener(v -> {
             if (currentUid == null || currentUid.isEmpty()) return true;
+            Context ctx = v.getContext();
             db.collection("users").document(currentUid).get().addOnSuccessListener(documentSnapshot -> {
                 if (documentSnapshot.exists()) {
                     String myRole = documentSnapshot.getString("role");
                     if ("User".equals(myRole) && !currentUid.equals(createdBy)) {
-                        Toast.makeText(v.getContext(), "🛑 權限不足！普通成員無法刪除他人的任務", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(ctx, ctx.getString(R.string.toast_privilege_insufficient), Toast.LENGTH_SHORT).show();
                         return;
                     }
-                    new AlertDialog.Builder(v.getContext())
-                            .setTitle("刪除雲端任務")
-                            .setMessage("確定要從群組雲端刪除「" + title + "」嗎？")
-                            .setPositiveButton("確定", (dialog, which) -> {
+                    new AlertDialog.Builder(ctx)
+                            .setTitle(ctx.getString(R.string.dialog_delete_task_title))
+                            .setMessage(ctx.getString(R.string.dialog_delete_task_msg, title))
+                            .setPositiveButton(ctx.getString(R.string.action_confirm), (dialog, which) -> {
                                 if (task.getCloudDocId() != null) {
                                     db.collection("tasks").document(task.getCloudDocId()).delete()
-                                            .addOnSuccessListener(aVoid -> Toast.makeText(v.getContext(), "雲端任務已成功卸載刪除", Toast.LENGTH_SHORT).show());
+                                            .addOnSuccessListener(aVoid -> Toast.makeText(ctx, ctx.getString(R.string.toast_cloud_delete_success), Toast.LENGTH_SHORT).show());
                                 }
                             })
-                            .setNegativeButton("取消", null).show();
+                            .setNegativeButton(ctx.getString(R.string.action_cancel), null).show();
                 }
             });
             return true;
@@ -1158,12 +1117,11 @@ public class TaskAdapter extends RecyclerView.Adapter<TaskAdapter.TaskViewHolder
     }
 
     static class TaskViewHolder extends RecyclerView.ViewHolder {
-        ImageView viewMemberTag; // 🎯 修正：從 View 改為 ImageView，用來直接顯示頭像 Icon！
+        ImageView viewMemberTag;
         TextView tvTaskTitle, tvTaskMember;
-
         public TaskViewHolder(@NonNull View itemView) {
             super(itemView);
-            viewMemberTag = itemView.findViewById(R.id.viewMemberTag); // 🎯 對應你的 item_task.xml 裡左側的黑色圓圈
+            viewMemberTag = itemView.findViewById(R.id.viewMemberTag);
             tvTaskTitle = itemView.findViewById(R.id.tvTaskTitle);
             tvTaskMember = itemView.findViewById(R.id.tvTaskMember);
         }
@@ -1204,7 +1162,7 @@ public class SettingsActivity extends AppCompatActivity {
     private TextView tvSettingsName, tvSettingsEmail, tvSettingsGroupCode;
     private Button btnChangePassword, btnRegenGroupCode, btnLeaveGroup, btnLogout;
     private RecyclerView rvGroupMembers;
-    private ImageView ivUserIcon; // 🎯 新增：設定頁面的個人頭像元件
+    private ImageView ivUserIcon;
 
     private FirebaseFirestore db;
     private FirebaseAuth mAuth;
@@ -1219,14 +1177,13 @@ public class SettingsActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_settings);
-
         mAuth = FirebaseAuth.getInstance();
         db = FirebaseFirestore.getInstance();
         currentUid = mAuth.getCurrentUser() != null ? mAuth.getCurrentUser().getUid() : "";
 
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setTitle("⚙️ 系統設定與權限中心");
+            getSupportActionBar().setTitle(getString(R.string.title_settings_center));
         }
 
         tvSettingsName = findViewById(R.id.tvSettingsName);
@@ -1236,19 +1193,15 @@ public class SettingsActivity extends AppCompatActivity {
         btnRegenGroupCode = findViewById(R.id.btnRegenGroupCode);
         btnLeaveGroup = findViewById(R.id.btnLeaveGroup);
         btnLogout = findViewById(R.id.btnLogout);
-
-
         ivUserIcon = findViewById(R.id.ivUserIcon);
-
         rvGroupMembers = findViewById(R.id.rvGroupMembers);
         rvGroupMembers.setLayoutManager(new LinearLayoutManager(this));
 
         if (mAuth.getCurrentUser() != null) {
-            tvSettingsEmail.setText("Email 帳號：" + mAuth.getCurrentUser().getEmail());
+            tvSettingsEmail.setText(getString(R.string.settings_email_prefix, mAuth.getCurrentUser().getEmail()));
         }
 
         fetchMyProfileAndGroup();
-
 
         if (ivUserIcon != null) {
             ivUserIcon.setOnClickListener(v -> {
@@ -1265,7 +1218,7 @@ public class SettingsActivity extends AppCompatActivity {
 
         btnLogout.setOnClickListener(v -> {
             mAuth.signOut();
-            Toast.makeText(SettingsActivity.this, "已安全登出家庭系統", Toast.LENGTH_SHORT).show();
+            Toast.makeText(SettingsActivity.this, getString(R.string.toast_logout_success), Toast.LENGTH_SHORT).show();
             Intent intent = new Intent(SettingsActivity.this, LoginActivity.class);
             intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
             startActivity(intent);
@@ -1279,18 +1232,17 @@ public class SettingsActivity extends AppCompatActivity {
                 String name = documentSnapshot.getString("name");
                 myRole = documentSnapshot.getString("role");
                 myGroupId = documentSnapshot.getString("group_id");
-                String userIconStr = documentSnapshot.getString("user_icon"); // 🎯 讀取頭像
+                String userIconStr = documentSnapshot.getString("user_icon");
 
-                tvSettingsName.setText("姓名：" + name + " (" + myRole + ")");
-                tvSettingsGroupCode.setText("🔑 家庭邀請碼：" + myGroupId);
+                tvSettingsName.setText(getString(R.string.settings_name_prefix, name, myRole));
+                tvSettingsGroupCode.setText(getString(R.string.settings_group_code_prefix, myGroupId));
 
-                // 🎯 渲染本地儲存的個人頭像
                 if (ivUserIcon != null && userIconStr != null && !userIconStr.isEmpty()) {
                     try {
                         getContentResolver().takePersistableUriPermission(Uri.parse(userIconStr), Intent.FLAG_GRANT_READ_URI_PERMISSION);
                         ivUserIcon.setImageURI(Uri.parse(userIconStr));
                     } catch (Exception e) {
-                        ivUserIcon.setImageResource(android.R.drawable.ic_menu_gallery); // 防禦型預設圖
+                        ivUserIcon.setImageResource(android.R.drawable.ic_menu_gallery);
                     }
                 }
 
@@ -1307,7 +1259,6 @@ public class SettingsActivity extends AppCompatActivity {
         });
     }
 
-
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -1319,11 +1270,8 @@ public class SettingsActivity extends AppCompatActivity {
                 if (ivUserIcon != null) {
                     ivUserIcon.setImageURI(iconUri);
                 }
-
-
                 db.collection("users").document(currentUid).update("user_icon", iconUri.toString())
-                        .addOnSuccessListener(aVoid -> Toast.makeText(SettingsActivity.this, "个人 Icon 更换成功！", Toast.LENGTH_SHORT).show());
-
+                        .addOnSuccessListener(aVoid -> Toast.makeText(SettingsActivity.this, getString(R.string.toast_icon_upload_success), Toast.LENGTH_SHORT).show());
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -1332,7 +1280,6 @@ public class SettingsActivity extends AppCompatActivity {
 
     private void listenGroupMembers() {
         if (myGroupId == null || myGroupId.isEmpty()) return;
-
         db.collection("users").whereEqualTo("group_id", myGroupId)
                 .addSnapshotListener((value, error) -> {
                     if (value != null) {
@@ -1345,9 +1292,9 @@ public class SettingsActivity extends AppCompatActivity {
 
     private void popupRegenCodeConfirmDialog() {
         new AlertDialog.Builder(this)
-                .setTitle("🔄 警告：刷新家庭邀請碼")
-                .setMessage("更換邀請碼後，舊的代碼將立即作廢，但目前已在組內的成員與歷史任務會安全遷移。確定要更換嗎？")
-                .setPositiveButton("確定變更", (dialog, which) -> {
+                .setTitle(getString(R.string.dialog_regen_code_title))
+                .setMessage(getString(R.string.dialog_regen_code_msg))
+                .setPositiveButton(getString(R.string.action_confirm), (dialog, which) -> {
                     String newCode = generateRandomGroupCode();
                     WriteBatch batch = db.batch();
 
@@ -1367,22 +1314,22 @@ public class SettingsActivity extends AppCompatActivity {
                                     batch.update(db.collection("tasks").document(taskDoc.getId()), "group_id", newCode);
                                 }
                                 batch.commit().addOnSuccessListener(aVoid -> {
-                                    Toast.makeText(SettingsActivity.this, "邀請碼變更成功，全體歷史任務已安全同步遷移！", Toast.LENGTH_SHORT).show();
+                                    Toast.makeText(SettingsActivity.this, getString(R.string.toast_invite_code_migrated), Toast.LENGTH_SHORT).show();
                                     myGroupId = newCode;
                                     fetchMyProfileAndGroup();
                                 }).addOnFailureListener(e -> {
-                                    Toast.makeText(SettingsActivity.this, "變更失敗: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                                    Toast.makeText(SettingsActivity.this, getString(R.string.toast_invite_code_failed, e.getMessage()), Toast.LENGTH_LONG).show();
                                 });
                             })
                             .addOnFailureListener(e -> {
                                 batch.commit().addOnSuccessListener(aVoid -> {
-                                    Toast.makeText(SettingsActivity.this, "邀請碼已更換，但任務遷移遇到異常。", Toast.LENGTH_SHORT).show();
+                                    Toast.makeText(SettingsActivity.this, getString(R.string.toast_invite_code_migration_error), Toast.LENGTH_SHORT).show();
                                     myGroupId = newCode;
                                     fetchMyProfileAndGroup();
                                 });
                             });
                 })
-                .setNegativeButton("取消", null).show();
+                .setNegativeButton(getString(R.string.action_cancel), null).show();
     }
 
     private void handleLeaveGroupLogic() {
@@ -1394,15 +1341,14 @@ public class SettingsActivity extends AppCompatActivity {
         }
 
         if ("Admin".equals(myRole) && adminCount <= 1 && memberDocList.size() > 1) {
-            Toast.makeText(this, "🛑 退出拒絕！你是目前唯一的管理者，請先將其他成員升級為 Admin 才能退出！", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, getString(R.string.toast_admin_leave_denied), Toast.LENGTH_LONG).show();
             return;
         }
 
         new AlertDialog.Builder(this)
-                .setTitle("🏃‍♂️ 確定要退出群組？")
-                .setMessage("退出群組後，你將無法查看或編輯此家庭的任何工作任務。")
-                .setPositiveButton("確定退出", (dialog, which) -> {
-
+                .setTitle(getString(R.string.dialog_leave_group_title))
+                .setMessage(getString(R.string.dialog_leave_group_msg))
+                .setPositiveButton(getString(R.string.action_confirm), (dialog, which) -> {
                     if (memberDocList.size() <= 1) {
                         db.collection("groups").document(myGroupId).delete();
                     }
@@ -1413,31 +1359,31 @@ public class SettingsActivity extends AppCompatActivity {
 
                     db.collection("users").document(currentUid).update(updates)
                             .addOnSuccessListener(aVoid -> {
-                                Toast.makeText(SettingsActivity.this, "已成功退出家庭群組！", Toast.LENGTH_LONG).show();
+                                Toast.makeText(SettingsActivity.this, getString(R.string.toast_leave_group_success), Toast.LENGTH_LONG).show();
                                 Intent intent = new Intent(SettingsActivity.this, GroupSetupActivity.class);
                                 intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                                 startActivity(intent);
                                 finish();
                             });
                 })
-                .setNegativeButton("取消", null).show();
+                .setNegativeButton(getString(R.string.action_cancel), null).show();
     }
 
     private void popupChangePasswordDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("🔒 修改安全登入密碼");
+        builder.setTitle(getString(R.string.dialog_change_pwd_title));
 
         android.widget.LinearLayout layout = new android.widget.LinearLayout(this);
         layout.setOrientation(android.widget.LinearLayout.VERTICAL);
         layout.setPadding(60, 40, 60, 20);
 
         final EditText etNewPassword = new EditText(this);
-        etNewPassword.setHint("請輸入新密碼 (至少 6 位數)");
+        etNewPassword.setHint(getString(R.string.dialog_change_pwd_hint));
         etNewPassword.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
         layout.addView(etNewPassword);
 
         final EditText etConfirmPassword = new EditText(this);
-        etConfirmPassword.setHint("請再次輸入新密碼以確認");
+        etConfirmPassword.setHint(getString(R.string.dialog_change_pwd_confirm_hint));
         etConfirmPassword.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD);
         android.widget.LinearLayout.LayoutParams params = new android.widget.LinearLayout.LayoutParams(
                 android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
@@ -1449,28 +1395,27 @@ public class SettingsActivity extends AppCompatActivity {
 
         builder.setView(layout);
 
-        builder.setPositiveButton("確認修改", (dialog, which) -> {
+        builder.setPositiveButton(getString(R.string.action_confirm), (dialog, which) -> {
             String newPassword = etNewPassword.getText().toString().trim();
             String confirmPassword = etConfirmPassword.getText().toString().trim();
 
             if (newPassword.length() < 6) {
-                Toast.makeText(SettingsActivity.this, "❌ 密碼長度不足 6 位！", Toast.LENGTH_SHORT).show();
+                Toast.makeText(SettingsActivity.this, getString(R.string.toast_password_length_error), Toast.LENGTH_SHORT).show();
                 return;
             }
 
             if (!newPassword.equals(confirmPassword)) {
-                Toast.makeText(SettingsActivity.this, "❌ 兩次輸入的密碼不一致，請重新填寫！", Toast.LENGTH_LONG).show();
+                Toast.makeText(SettingsActivity.this, getString(R.string.toast_password_mismatch), Toast.LENGTH_LONG).show();
                 return;
             }
 
             if (mAuth.getCurrentUser() != null) {
                 mAuth.getCurrentUser().updatePassword(newPassword).addOnSuccessListener(aVoid -> {
-                    Toast.makeText(SettingsActivity.this, "✅ 雲端驗證：密碼修改成功！", Toast.LENGTH_SHORT).show();
-                }).addOnFailureListener(e -> Toast.makeText(SettingsActivity.this, "修改失敗：" + e.getMessage(), Toast.LENGTH_LONG).show());
+                    Toast.makeText(SettingsActivity.this, getString(R.string.toast_password_update_success), Toast.LENGTH_SHORT).show();
+                }).addOnFailureListener(e -> Toast.makeText(SettingsActivity.this, getString(R.string.toast_password_update_failed, e.getMessage()), Toast.LENGTH_LONG).show());
             }
         });
-
-        builder.setNegativeButton("取消", null);
+        builder.setNegativeButton(getString(R.string.action_cancel), null);
         builder.show();
     }
 
@@ -1486,7 +1431,6 @@ public class SettingsActivity extends AppCompatActivity {
     }
 
     private class MemberAdapter extends RecyclerView.Adapter<MemberAdapter.MemberViewHolder> {
-
         @NonNull
         @Override
         public MemberViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
@@ -1502,7 +1446,7 @@ public class SettingsActivity extends AppCompatActivity {
             String role = memberDoc.getString("role");
 
             holder.tvMemberName.setText(name);
-            holder.tvMemberRole.setText("群組身分：" + role);
+            holder.tvMemberRole.setText(getString(R.string.member_role_prefix, role));
 
             if ("User".equals(myRole) || currentUid.equals(uId)) {
                 holder.btnToggleRole.setVisibility(View.GONE);
@@ -1512,7 +1456,6 @@ public class SettingsActivity extends AppCompatActivity {
 
             holder.btnToggleRole.setOnClickListener(v -> {
                 String targetNewRole = "Admin".equals(role) ? "User" : "Admin";
-
                 if ("Admin".equals(role) && "User".equals(targetNewRole)) {
                     int adminCount = 0;
                     for (DocumentSnapshot doc : memberDocList) {
@@ -1521,13 +1464,13 @@ public class SettingsActivity extends AppCompatActivity {
                         }
                     }
                     if (adminCount <= 1) {
-                        Toast.makeText(SettingsActivity.this, "🛑 變更拒絕！家庭組內必須保持至少一名管理者(Admin)！", Toast.LENGTH_LONG).show();
+                        Toast.makeText(SettingsActivity.this, getString(R.string.toast_admin_toggle_denied), Toast.LENGTH_LONG).show();
                         return;
                     }
                 }
 
                 db.collection("users").document(uId).update("role", targetNewRole)
-                        .addOnSuccessListener(aVoid -> Toast.makeText(SettingsActivity.this, "已成功將 " + name + " 切換為 " + targetNewRole, Toast.LENGTH_SHORT).show());
+                        .addOnSuccessListener(aVoid -> Toast.makeText(SettingsActivity.this, getString(R.string.toast_admin_toggle_success, name, targetNewRole), Toast.LENGTH_SHORT).show());
             });
         }
 
@@ -1539,7 +1482,6 @@ public class SettingsActivity extends AppCompatActivity {
         class MemberViewHolder extends RecyclerView.ViewHolder {
             TextView tvMemberName, tvMemberRole;
             Button btnToggleRole;
-
             public MemberViewHolder(@NonNull View itemView) {
                 super(itemView);
                 tvMemberName = itemView.findViewById(R.id.tvMemberName);

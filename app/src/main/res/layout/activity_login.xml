@@ -3,89 +3,98 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:padding="24dp"
     android:gravity="center"
-    android:background="#F5F6FA">
+    android:padding="30dp"
+    android:background="#FFFFFF">
+
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="🏡 DailyTask"
+        android:text="DailyTask"
+        android:textColor="#2196F3"
         android:textSize="32sp"
         android:textStyle="bold"
-        android:textColor="#2196F3"
-        android:layout_marginBottom="8dp"/>
+        android:layout_marginBottom="5dp"/>
+
 
     <TextView
         android:id="@+id/tvLoginSubtitle"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="智能家庭任務協同系統"
-        android:textSize="16sp"
-        android:textColor="#7F8C8D"
-        android:layout_marginBottom="32dp"/>
+        android:text="Family Task Collaboration System"
+        android:textColor="#777777"
+        android:textSize="14sp"
+        android:layout_marginBottom="30dp"
+        android:gravity="center"/>
+
 
     <EditText
         android:id="@+id/etLoginName"
         android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:hint="用戶姓名 (例如: 爸爸、媽媽)"
-        android:background="@android:drawable/editbox_background"
-        android:padding="12dp"
-        android:layout_marginBottom="16dp"
-        android:inputType="text"
-        android:visibility="gone" />
+        android:layout_height="48dp"
+        android:hint="Full Name"
+        android:inputType="textPersonName"
+        android:visibility="gone"
+        android:layout_marginBottom="12dp"
+        android:paddingHorizontal="10dp"
+        android:background="@android:drawable/editbox_background"/>
+
 
     <EditText
         android:id="@+id/etLoginEmail"
         android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:hint="電子郵件 (Email)"
-        android:background="@android:drawable/editbox_background"
-        android:padding="12dp"
-        android:layout_marginBottom="16dp"
-        android:inputType="textEmailAddress"/>
+        android:layout_height="48dp"
+        android:hint="Email Address"
+        android:inputType="textEmailAddress"
+        android:layout_marginBottom="12dp"
+        android:paddingHorizontal="10dp"
+        android:background="@android:drawable/editbox_background"/>
 
+    <!-- 密碼輸入框 / Password Box -->
     <EditText
         android:id="@+id/etLoginPassword"
         android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:hint="密碼 (Password)"
-        android:background="@android:drawable/editbox_background"
-        android:padding="12dp"
-        android:layout_marginBottom="16dp"
-        android:inputType="textPassword"/>
+        android:layout_height="48dp"
+        android:hint="Password (min 6 characters)"
+        android:inputType="textPassword"
+        android:layout_marginBottom="12dp"
+        android:paddingHorizontal="10dp"
+        android:background="@android:drawable/editbox_background"/>
 
+    <!-- 確認密碼輸入框 / Confirm Password Box -->
     <EditText
         android:id="@+id/etLoginConfirmPassword"
         android:layout_width="match_parent"
-        android:layout_height="50dp"
-        android:hint="確認密碼 (Confirm Password)"
-        android:background="@android:drawable/editbox_background"
-        android:padding="12dp"
-        android:layout_marginBottom="24dp"
+        android:layout_height="48dp"
+        android:hint="Confirm Password"
         android:inputType="textPassword"
-        android:visibility="gone" />
+        android:visibility="gone"
+        android:layout_marginBottom="20dp"
+        android:paddingHorizontal="10dp"
+        android:background="@android:drawable/editbox_background"/>
+
 
     <Button
         android:id="@+id/btnMainAction"
         android:layout_width="match_parent"
-        android:layout_height="55dp"
-        android:text="安全登入"
-        android:textSize="18sp"
+        android:layout_height="50dp"
+        android:text="Secure Login"
+        android:textSize="16sp"
         android:textStyle="bold"
-        android:backgroundTint="#2196F3"
         android:textColor="#FFFFFF"
-        android:layout_marginBottom="16dp"/>
+        android:backgroundTint="#2196F3"
+        android:layout_marginBottom="15dp"/>
+
 
     <TextView
         android:id="@+id/tvSwitchMode"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="沒有帳號？點擊此處切換至「新增註冊」"
+        android:text="Don't have an account? Tap here to Register"
+        android:textColor="#1976D2"
         android:textSize="14sp"
-        android:textColor="#2980B9"
-        android:textStyle="bold"
-        android:padding="8dp"/>
+        android:padding="10dp"
+        android:gravity="center"/>
 
 </LinearLayout>
