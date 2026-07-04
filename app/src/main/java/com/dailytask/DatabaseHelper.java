@@ -37,7 +37,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 + COLUMN_TIME + " TEXT,"
                 + COLUMN_NOTES + " TEXT,"
                 + COLUMN_STATUS + " TEXT,"
-                + COLUMN_IMAGE + " TEXT" + ")"; // 建立 Table 時加入圖片欄位
+                + COLUMN_IMAGE + " TEXT" + ")";
         db.execSQL(CREATE_TASKS_TABLE);
     }
 
@@ -47,7 +47,6 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         onCreate(db);
     }
 
-    //
     public void addTask(String title, String member, String date, String time, String notes, String image) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues values = new ContentValues();
@@ -56,20 +55,19 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         values.put(COLUMN_DATE, date);
         values.put(COLUMN_TIME, time);
         values.put(COLUMN_NOTES, notes);
-        values.put(COLUMN_STATUS, "未完成"); // 預設初始狀態
-        values.put(COLUMN_IMAGE, image);     // 🚀 修正：成功將圖片路徑持久化存在本地！
+        values.put(COLUMN_STATUS, "Pending");
+        values.put(COLUMN_IMAGE, image);
 
-        long result = db.insert(TABLE_TASKS, null, values);
+        db.insert(TABLE_TASKS, null, values);
         db.close();
     }
 
-    //
     public boolean updateTask(int id, String newNotes, String newStatus, String newImage) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues values = new ContentValues();
         values.put(COLUMN_NOTES, newNotes);
         values.put(COLUMN_STATUS, newStatus);
-        values.put(COLUMN_IMAGE, newImage); // 更新附件路徑
+        values.put(COLUMN_IMAGE, newImage);
 
         int rows = db.update(TABLE_TASKS, values, COLUMN_ID + " = ?", new String[]{String.valueOf(id)});
         db.close();

@@ -36,22 +36,17 @@ public class GroupSetupActivity extends AppCompatActivity {
             currentUid = mAuth.getCurrentUser().getUid();
         }
 
-
         userName = getIntent().getStringExtra("USER_NAME");
-        if (userName == null || userName.isEmpty()) userName = "未知成員";
+        if (userName == null || userName.isEmpty()) userName = getString(R.string.unknown_member);
 
         btnCreateGroup = findViewById(R.id.btnCreateGroup);
         btnJoinGroup = findViewById(R.id.btnJoinGroup);
         etGroupCode = findViewById(R.id.etGroupCode);
 
-
         btnCreateGroup.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-
                 String generatedGroupCode = generateRandomGroupCode();
-
-
                 Map<String, Object> groupData = new HashMap<>();
                 groupData.put("owner_uid", currentUid);
                 groupData.put("group_code", generatedGroupCode);
@@ -61,37 +56,32 @@ public class GroupSetupActivity extends AppCompatActivity {
                         .addOnSuccessListener(new OnSuccessListener<Void>() {
                             @Override
                             public void onSuccess(Void aVoid) {
-
                                 saveUserInfoToCloud(generatedGroupCode, "Admin");
                             }
                         });
             }
         });
 
-
         btnJoinGroup.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 final String inputCode = etGroupCode.getText().toString().trim().toUpperCase();
                 if (inputCode.length() < 6) {
-                    Toast.makeText(GroupSetupActivity.this, "請輸入完整的 6 位群組代碼！", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(GroupSetupActivity.this, getString(R.string.toast_code_length_error), Toast.LENGTH_SHORT).show();
                     return;
                 }
-
 
                 db.collection("groups").document(inputCode).get()
                         .addOnSuccessListener(documentSnapshot -> {
                             if (documentSnapshot.exists()) {
-
                                 saveUserInfoToCloud(inputCode, "User");
                             } else {
-                                Toast.makeText(GroupSetupActivity.this, "該家庭代碼不存在，請重新核对！", Toast.LENGTH_LONG).show();
+                                Toast.makeText(GroupSetupActivity.this, getString(R.string.toast_code_not_found), Toast.LENGTH_LONG).show();
                             }
                         });
             }
         });
     }
-
 
     private void saveUserInfoToCloud(String groupCode, String role) {
         Map<String, Object> userData = new HashMap<>();
@@ -105,8 +95,8 @@ public class GroupSetupActivity extends AppCompatActivity {
                 .addOnSuccessListener(new OnSuccessListener<Void>() {
                     @Override
                     public void onSuccess(Void aVoid) {
-                        Toast.makeText(GroupSetupActivity.this, "家庭配置成功！身份: " + role + " | 代碼: " + groupCode, Toast.LENGTH_LONG).show();
-
+                        String msg = getString(R.string.toast_group_setup_success, role, groupCode);
+                        Toast.makeText(GroupSetupActivity.this, msg, Toast.LENGTH_LONG).show();
 
                         Intent intent = new Intent(GroupSetupActivity.this, MainActivity.class);
                         startActivity(intent);

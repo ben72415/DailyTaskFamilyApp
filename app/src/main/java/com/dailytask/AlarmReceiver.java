@@ -21,19 +21,21 @@ public class AlarmReceiver extends BroadcastReceiver {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID,
-                    "家庭任務提醒",
+                    context.getString(R.string.notif_channel_name),
                     NotificationManager.IMPORTANCE_HIGH
             );
-            channel.setDescription("用於 DailyTask 家庭任務到期時的自動提醒");
+            channel.setDescription(context.getString(R.string.notif_channel_desc));
             if (notificationManager != null) {
                 notificationManager.createNotificationChannel(channel);
             }
         }
 
+        String contentText = context.getString(R.string.notif_content, taskMember, taskTitle);
+
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-                .setContentTitle("⏰ 家庭任務時間到！")
-                .setContentText("負責人 " + taskMember + " 該執行任務囉：" + taskTitle)
+                .setContentTitle(context.getString(R.string.notif_title))
+                .setContentText(contentText)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setAutoCancel(true);
 

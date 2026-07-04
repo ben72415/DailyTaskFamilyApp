@@ -19,14 +19,11 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
-
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -56,7 +53,6 @@ public class EditTaskActivity extends AppCompatActivity {
     private ArrayList<String> editImageUris = new ArrayList<>();
     private Uri editCameraImageUri;
 
-
     private MediaRecorder mediaRecorder;
     private MediaPlayer mediaPlayer;
     private String voiceFilePath = "";
@@ -75,12 +71,12 @@ public class EditTaskActivity extends AppCompatActivity {
 
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setTitle("雲端管理：任務詳情");
+            getSupportActionBar().setTitle(getString(R.string.title_edit_task_cloud));
         }
 
         taskId = getIntent().getStringExtra("TASK_ID");
         taskTitle = getIntent().getStringExtra("TASK_TITLE");
-        if (taskTitle == null) taskTitle = "無標題任務";
+        if (taskTitle == null) taskTitle = getString(R.string.untitled_task);
 
         taskMember = getIntent().getStringExtra("TASK_MEMBER");
         taskDate = getIntent().getStringExtra("TASK_DATE");
@@ -102,14 +98,11 @@ public class EditTaskActivity extends AppCompatActivity {
         btnEditSaveTask = findViewById(R.id.btnEditSaveTask);
         layoutEditImageContainer = findViewById(R.id.layoutEditImageContainer);
 
-
         btnEditStartRecord = findViewById(R.id.btnEditStartRecord);
         btnEditStopRecord = findViewById(R.id.btnEditStopRecord);
         btnEditPlayRecord = findViewById(R.id.btnEditPlayRecord);
 
-
         voiceFilePath = getExternalCacheDir().getAbsolutePath() + "/Task_Voice_Edit_Temp.3gp";
-
         tvPermissionWarning = new TextView(this);
         tvPermissionWarning.setTextSize(14);
         tvPermissionWarning.setPadding(0, 10, 0, 10);
@@ -117,15 +110,14 @@ public class EditTaskActivity extends AppCompatActivity {
             ((LinearLayout) findViewById(R.id.etEditTaskNotes).getParent()).addView(tvPermissionWarning, 2);
         }
 
-        tvEditTitleHeader.setText("任務: " + taskTitle + " (" + taskMember + ")");
+        tvEditTitleHeader.setText(getString(R.string.task_header_format, taskTitle, taskMember));
         etEditTaskNotes.setText(taskNotes);
-        cbEditStatus.setChecked("已完成".equals(taskStatus));
+        cbEditStatus.setChecked("Completed".equals(taskStatus));
 
         if (taskImagesStr != null && !taskImagesStr.isEmpty()) {
             editImageUris.addAll(Arrays.asList(taskImagesStr.split(",")));
         }
         rebuildImagePreviews();
-
 
         if (cloudDocId != null) {
             db.collection("tasks").document(cloudDocId).get().addOnSuccessListener(documentSnapshot -> {
@@ -133,12 +125,11 @@ public class EditTaskActivity extends AppCompatActivity {
                     String cloudVoicePath = documentSnapshot.getString("task_voice");
                     if (cloudVoicePath != null && !cloudVoicePath.isEmpty()) {
                         voiceFilePath = cloudVoicePath;
-                        btnEditPlayRecord.setEnabled(true); // 有歷史錄音，直接啟用播放按鈕
+                        btnEditPlayRecord.setEnabled(true);
                     }
                 }
             });
         }
-
 
         btnEditStartRecord.setOnClickListener(v -> {
             try {
@@ -153,10 +144,9 @@ public class EditTaskActivity extends AppCompatActivity {
                 btnEditStartRecord.setEnabled(false);
                 btnEditStopRecord.setEnabled(true);
                 btnEditPlayRecord.setEnabled(false);
-                Toast.makeText(this, "🎙️ 正在補錄語音說明...", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.toast_recording_edit_started), Toast.LENGTH_SHORT).show();
             } catch (IOException e) { e.printStackTrace(); }
         });
-
 
         btnEditStopRecord.setOnClickListener(v -> {
             if (mediaRecorder != null) {
@@ -166,10 +156,9 @@ public class EditTaskActivity extends AppCompatActivity {
                 btnEditStartRecord.setEnabled(true);
                 btnEditStopRecord.setEnabled(false);
                 btnEditPlayRecord.setEnabled(true);
-                Toast.makeText(this, "✅ 語音補錄完成！", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.toast_recording_edit_finished), Toast.LENGTH_SHORT).show();
             }
         });
-
 
         btnEditPlayRecord.setOnClickListener(v -> {
             try {
@@ -178,7 +167,7 @@ public class EditTaskActivity extends AppCompatActivity {
                 mediaPlayer.setDataSource(voiceFilePath);
                 mediaPlayer.prepare();
                 mediaPlayer.start();
-                Toast.makeText(this, "🔊 正在播放任務語音...", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.toast_recording_playing), Toast.LENGTH_SHORT).show();
             } catch (IOException e) { e.printStackTrace(); }
         });
 
@@ -186,7 +175,7 @@ public class EditTaskActivity extends AppCompatActivity {
 
         btnEditPickImage.setOnClickListener(v -> {
             if (editImageUris.size() >= 10) {
-                Toast.makeText(EditTaskActivity.this, "已達上限 10 張相片！", Toast.LENGTH_SHORT).show();
+                Toast.makeText(EditTaskActivity.this, getString(R.string.toast_photo_limit_reached), Toast.LENGTH_SHORT).show();
                 return;
             }
             Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
@@ -199,7 +188,7 @@ public class EditTaskActivity extends AppCompatActivity {
         if (btnEditCaptureImage != null) {
             btnEditCaptureImage.setOnClickListener(v -> {
                 if (editImageUris.size() >= 10) {
-                    Toast.makeText(EditTaskActivity.this, "已達上限 10 張相片！", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(EditTaskActivity.this, getString(R.string.toast_photo_limit_reached), Toast.LENGTH_SHORT).show();
                     return;
                 }
                 ContentValues values = new ContentValues();
@@ -229,30 +218,29 @@ public class EditTaskActivity extends AppCompatActivity {
                             Map<String, Object> updates = new HashMap<>();
                             updates.put("task_date", newDate);
                             updates.put("task_time", newTimeRange);
-                            updates.put("task_status", "已重新安排");
+                            updates.put("task_status", "Rescheduled"); // 改為英文
                             updates.put("task_notes", etEditTaskNotes.getText().toString().trim());
                             updates.put("task_image", buildCombinedImagesStr());
-
                             db.collection("tasks").document(cloudDocId).update(updates)
                                     .addOnSuccessListener(aVoid -> {
-                                        Toast.makeText(EditTaskActivity.this, "雲端排程已更新至 " + newDate, Toast.LENGTH_LONG).show();
+                                        Toast.makeText(EditTaskActivity.this, getString(R.string.toast_cloud_schedule_updated, newDate), Toast.LENGTH_LONG).show();
                                         finish();
                                     });
                         }
                     }, startHour + 1, startMinute, true);
-                    endTimePicker.setTitle("⏰ 請設定【新結束時間】");
+                    endTimePicker.setTitle(getString(R.string.dialog_time_picker_end));
                     endTimePicker.show();
                 }, c.get(Calendar.HOUR_OF_DAY), c.get(Calendar.MINUTE), true);
-                startTimePicker.setTitle("⏰ 請設定【新開始時間】");
+                startTimePicker.setTitle(getString(R.string.dialog_time_picker_start));
                 startTimePicker.show();
             }, c.get(Calendar.YEAR), c.get(Calendar.MONTH), c.get(Calendar.DAY_OF_MONTH));
-            datePickerDialog.setTitle("📅 請選擇【新執行日期】");
+            datePickerDialog.setTitle(getString(R.string.dialog_date_picker));
             datePickerDialog.show();
         });
 
         btnEditSaveTask.setOnClickListener(v -> {
             String updatedNotes = etEditTaskNotes.getText().toString().trim();
-            String updatedStatus = cbEditStatus.isChecked() ? "已完成" : "未完成";
+            String updatedStatus = cbEditStatus.isChecked() ? "Completed" : "Pending";
             String finalImagesStr = buildCombinedImagesStr();
 
             if (cloudDocId != null) {
@@ -261,7 +249,6 @@ public class EditTaskActivity extends AppCompatActivity {
                 updates.put("task_status", updatedStatus);
                 updates.put("task_image", finalImagesStr);
 
-
                 File vFile = new File(voiceFilePath);
                 if (vFile.exists() && btnEditPlayRecord.isEnabled()) {
                     updates.put("task_voice", voiceFilePath);
@@ -269,7 +256,7 @@ public class EditTaskActivity extends AppCompatActivity {
 
                 db.collection("tasks").document(cloudDocId).update(updates)
                         .addOnSuccessListener(aVoid -> {
-                            Toast.makeText(EditTaskActivity.this, "雲端修改同步成功！", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(EditTaskActivity.this, getString(R.string.toast_cloud_edit_success), Toast.LENGTH_SHORT).show();
                             finish();
                         });
             }
@@ -288,10 +275,8 @@ public class EditTaskActivity extends AppCompatActivity {
                             btnEditPickImage.setEnabled(false);
                             if (btnEditCaptureImage != null) btnEditCaptureImage.setEnabled(false);
 
-
                             btnEditStartRecord.setEnabled(false);
                             btnEditStopRecord.setEnabled(false);
-
                             etEditTaskNotes.setEnabled(false);
                             cbEditStatus.setEnabled(false);
 
@@ -300,10 +285,10 @@ public class EditTaskActivity extends AppCompatActivity {
                             btnEditPickImage.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#BDC3C7")));
                             if (btnEditCaptureImage != null) btnEditCaptureImage.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.parseColor("#BDC3C7")));
 
-                            tvPermissionWarning.setText("🛑 權限提示：你是家庭普通成員(User)，無權修改其他成員指派的任務。");
+                            tvPermissionWarning.setText(getString(R.string.permission_denied_warning));
                             tvPermissionWarning.setTextColor(Color.parseColor("#E74C3C"));
                         } else {
-                            tvPermissionWarning.setText("🔓 權限核准：你是 " + myRole + "，擁有本任務的完整編輯權限。");
+                            tvPermissionWarning.setText(getString(R.string.permission_approved_success, myRole));
                             tvPermissionWarning.setTextColor(Color.parseColor("#27AE60"));
                         }
                     }
@@ -343,11 +328,11 @@ public class EditTaskActivity extends AppCompatActivity {
 
     private void rebuildImagePreviews() {
         layoutEditImageContainer.removeAllViews();
-        tvEditImageCount.setText("相片附件 (長按相片可刪除): " + editImageUris.size() + "/10");
+        tvEditImageCount.setText(getString(R.string.photo_attachment_delete_hint, editImageUris.size()));
 
         if (editImageUris.isEmpty()) {
             TextView tvNoImg = new TextView(this);
-            tvNoImg.setText("(無相片附件)");
+            tvNoImg.setText(getString(R.string.no_photo_attachments));
             tvNoImg.setPadding(20, 20, 20, 20);
             layoutEditImageContainer.addView(tvNoImg);
             return;
@@ -374,13 +359,13 @@ public class EditTaskActivity extends AppCompatActivity {
                 if (!btnEditPickImage.isEnabled()) return true;
 
                 new AlertDialog.Builder(EditTaskActivity.this)
-                        .setTitle("刪除相片")
-                        .setMessage("確定要移走這張相片附件嗎？")
-                        .setPositiveButton("確定", (dialog, which) -> {
+                        .setTitle(getString(R.string.dialog_delete_photo_title))
+                        .setMessage(getString(R.string.dialog_delete_photo_msg))
+                        .setPositiveButton(getString(R.string.action_confirm), (dialog, which) -> {
                             editImageUris.remove(index);
                             rebuildImagePreviews();
                         })
-                        .setNegativeButton("取消", null).show();
+                        .setNegativeButton(getString(R.string.action_cancel), null).show();
                 return true;
             });
             layoutEditImageContainer.addView(imageView);

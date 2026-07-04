@@ -1,3 +1,92 @@
 <resources>
-    <string name="app_name">dailytaskapp</string>
+    <string name="app_name">Daily Task Tracker</string>
+
+    <string name="title_add_task_cloud">Cloud Sync: Add New Task</string>
+    <string name="title_edit_task_cloud">Cloud Management: Task Details</string>
+    <string name="title_settings_center">⚙️ Settings &amp; Privilege Center</string>
+
+    <string name="notif_channel_name">Family Task Reminder</string>
+    <string name="notif_channel_desc">Automated alerts when a DailyTask family task is due</string>
+    <string name="notif_title">⏰ Family Task Time Due!</string>
+    <string name="notif_content">Assignee %1$s needs to execute: %2$s</string>
+
+    <string name="syncing_members">👥 Syncing family members...</string>
+    <string name="unassigned_member">Unassigned</string>
+    <string name="unknown_member">Unknown Member</string>
+    <string name="untitled_task">Untitled Task</string>
+    <string name="no_photo_attachments">(No photo attachments)</string>
+
+    <string name="time_range_prefix">Time Slot: %1$s - %2$s</string>
+    <string name="photo_attachment_limit">Photo Attachments (Max 10): %1$d/10</string>
+    <string name="photo_attachment_delete_hint">Photo Attachments (Long press to delete): %1$d/10</string>
+    <string name="task_header_format">Task: %1$s (%2$s)</string>
+    <string name="settings_email_prefix">Email Account: %1$s</string>
+    <string name="settings_name_prefix">Name: %1$s (%2$s)</string>
+    <string name="settings_group_code_prefix">🔑 Family Invite Code: %1$s</string>
+    <string name="member_role_prefix">Group Role: %1$s</string>
+
+    <string name="permission_denied_warning">🛑 Access Denied: You are a standard member (User) and have no privilege to modify tasks assigned by other members.</string>
+    <string name="permission_approved_success">🔓 Access Approved: You are an %1$s and hold full editing permissions for this task.</string>
+
+    <string name="dialog_delete_photo_title">Delete Photo</string>
+    <string name="dialog_delete_photo_msg">Are you sure you want to remove this photo attachment?</string>
+    <string name="dialog_delete_task_title">Delete Cloud Task</string>
+    <string name="dialog_delete_task_msg">Are you sure you want to permanently delete \"%1$s\" from the family cloud?</string>
+    <string name="dialog_regen_code_title">🔄 Warning: Refresh Family Invite Code</string>
+    <string name="dialog_regen_code_msg">Once refreshed, the old invite code will expire immediately. Existing group members and historical tasks will migrate safely. Proceed?</string>
+    <string name="dialog_leave_group_title">🏃‍♂️ Leave Family Group?</string>
+    <string name="dialog_leave_group_msg">After leaving, you will no longer be able to view or edit any workflow tasks from this family.</string>
+    <string name="dialog_change_pwd_title">🔒 Modify Security Password</string>
+    <string name="dialog_change_pwd_hint">Enter new password (min 6 characters)</string>
+    <string name="dialog_change_pwd_confirm_hint">Re-enter new password to confirm</string>
+    <string name="dialog_time_picker_start">⏰ Please set [New Start Time]</string>
+    <string name="dialog_time_picker_end">⏰ Please set [New End Time]</string>
+    <string name="dialog_date_picker">📅 Please select [New Execution Date]</string>
+    <string name="action_confirm">Confirm</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_update">Update</string>
+
+    <string name="toast_code_length_error">Please enter a complete 6-digit group code!</string>
+    <string name="toast_code_not_found">The family invite code does not exist. Please double check!</string>
+    <string name="toast_group_setup_success">Family configured successfully! Role: %1$s | Code: %2$s</string>
+    <string name="toast_offline_cache_loading">Network anomaly, loading offline cache data...</string>
+    <string name="toast_offline_loaded_success">📡 Offline mode: Loaded locally encrypted backup tasks successfully</string>
+    <string name="toast_offline_no_cache">📴 Network disconnected and no local cache available for today</string>
+    <string name="toast_permission_record">Please grant audio recording permission first!</string>
+    <string name="toast_recording_started">🎙️ Recording task voice memo...</string>
+    <string name="toast_recording_finished">✅ Voice recording completed!</string>
+    <string name="toast_recording_playing">🔊 Playing task voice memo...</string>
+    <string name="toast_recording_edit_started">🎙️ Recording supplemental voice description...</string>
+    <string name="toast_recording_edit_finished">✅ Supplemental voice recording completed!</string>
+    <string name="toast_photo_limit_reached">Maximum limit of 10 photos reached!</string>
+    <string name="toast_error_empty_title">Please enter a task title!</string>
+    <string name="toast_error_group_info">Fetching group info, please wait...</string>
+    <string name="toast_success_cloud_sync">Task synced to family cloud and local database successfully!</string>
+    <string name="toast_success_local_cache">Saved safely in local SQLite cache!</string>
+    <string name="toast_success_queue">Task published and added to sync queue!</string>
+    <string name="toast_cloud_schedule_updated">Cloud schedule updated to %1$s</string>
+    <string name="toast_cloud_edit_success">Cloud modifications synchronized successfully!</string>
+    <string name="toast_privilege_insufficient">🛑 Insufficient privileges! Standard members cannot delete others\' tasks.</string>
+    <string name="toast_cloud_delete_success">Cloud task uninstalled and deleted successfully</string>
+    <string name="toast_logout_success">Securely logged out from the family system</string>
+    <string name="toast_icon_upload_success">Personal avatar changed successfully!</string>
+    <string name="toast_invite_code_migrated">Invite code changed successfully. All historical tasks migrated safely!</string>
+    <string name="toast_invite_code_migration_error">Invite code changed, but task migration encountered an exception.</string>
+    <string name="toast_invite_code_failed">Change failed: %1$s</string>
+    <string name="toast_admin_leave_denied">🛑 Exit Denied! You are the sole administrator. Please promote another member to Admin before leaving!</string>
+    <string name="toast_leave_group_success">Successfully left the family group!</string>
+    <string name="toast_password_length_error">❌ Password length must be at least 6 characters!</string>
+    <string name="toast_password_mismatch">❌ Passwords do not match. Please re-enter!</string>
+    <string name="toast_password_update_success">✅ Cloud verified: Password updated successfully!</string>
+    <string name="toast_password_update_failed">Update failed: %1$s</string>
+    <string name="toast_admin_toggle_denied">🛑 Modification Denied! The family group must maintain at least one Admin!</string>
+    <string name="toast_admin_toggle_success">Successfully changed %1$s to %2$s</string>
+    <string name="toast_login_empty_error">Please fill in both Email and Password!</string>
+    <string name="toast_login_length_error">Password length must be at least 6 digits!</string>
+    <string name="toast_login_success">Login successful! Welcome back</string>
+    <string name="toast_login_failed">Login failed: %1$s</string>
+    <string name="toast_reg_name_empty">Registration requires your full name!</string>
+    <string name="toast_reg_success">Account established successfully!</string>
+    <string name="toast_reg_failed">Registration failed: %1$s</string>
 </resources>

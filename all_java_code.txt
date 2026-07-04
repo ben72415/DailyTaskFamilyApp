@@ -287,22 +287,31 @@ public class MainActivity extends AppCompatActivity {
 
         if (currentUserGroupId == null || currentUserGroupId.isEmpty()) return;
 
+
+        DatabaseHelper localDb = new DatabaseHelper(this);
+
         taskListenerRegistration = db.collection("tasks")
                 .whereEqualTo("group_id", currentUserGroupId)
                 .whereEqualTo("task_date", currentDateSelected)
                 .addSnapshotListener((value, error) -> {
+
+
                     if (error != null) {
+                        List<Task> localTaskList = localDb.getTasksByDate(currentDateSelected);
+                        if (localTaskList != null && !localTaskList.isEmpty()) {
+                            taskAdapter = new TaskAdapter(localTaskList);
+                            rvTasks.setAdapter(taskAdapter);
+                            Toast.makeText(MainActivity.this, "📡 處於離線狀態，已成功加載本地加密備份任務", Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(MainActivity.this, "📴 網絡中斷且本地尚無當日快取", Toast.LENGTH_SHORT).show();
+                        }
                         return;
                     }
 
                     List<Task> cloudTaskList = new ArrayList<>();
                     if (value != null) {
                         for (QueryDocumentSnapshot doc : value) {
-
-
-                            int idLong = 0;
                             String taskIdStr = doc.getId();
-
                             String title = doc.getString("title");
                             String member = doc.getString("member");
                             String taskDate = doc.getString("task_date");
@@ -315,7 +324,6 @@ public class MainActivity extends AppCompatActivity {
                             Task task = new Task(taskIdStr, title, member, taskDate, taskTime, taskNotes, taskStatus, taskImage);
                             task.setCloudDocId(doc.getId());
                             task.setCreatedBy(createdBy);
-
                             cloudTaskList.add(task);
                         }
                     }
@@ -383,7 +391,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     }
 
     //
-    public boolean addTask(String title, String member, String date, String time, String notes) {
+    public void addTask(String title, String member, String date, String time, String notes, String image) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues values = new ContentValues();
         values.put(COLUMN_TITLE, title);
@@ -391,12 +399,11 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         values.put(COLUMN_DATE, date);
         values.put(COLUMN_TIME, time);
         values.put(COLUMN_NOTES, notes);
-        values.put(COLUMN_STATUS, "未完成");
-        values.put(COLUMN_IMAGE, ""); // 預設無附件
+        values.put(COLUMN_STATUS, "未完成"); // 預設初始狀態
+        values.put(COLUMN_IMAGE, image);     // 🚀 修正：成功將圖片路徑持久化存在本地！
 
         long result = db.insert(TABLE_TASKS, null, values);
         db.close();
-        return result != -1;
     }
 
     //
@@ -867,6 +874,8 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
+import com.google.firebase.firestore.FirebaseFirestoreSettings;
+import com.google.firebase.firestore.PersistentCacheSettings;
 
 public class LoginActivity extends AppCompatActivity {
 
@@ -875,8 +884,8 @@ public class LoginActivity extends AppCompatActivity {
     private TextView tvLoginSubtitle, tvSwitchMode;
 
     private FirebaseAuth mAuth;
-    private FirebaseFirestore db; // 🎯 修正：宣告雲端資料庫變數 db
-    private boolean isLoginMode = true; // 標記目前是登入模式還是註冊模式
+    private FirebaseFirestore db;
+    private boolean isLoginMode = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -884,16 +893,22 @@ public class LoginActivity extends AppCompatActivity {
         setContentView(R.layout.activity_login);
 
         mAuth = FirebaseAuth.getInstance();
-
-
         db = FirebaseFirestore.getInstance();
 
-
-        com.google.firebase.firestore.FirebaseFirestoreSettings settings =
-                new com.google.firebase.firestore.FirebaseFirestoreSettings.Builder()
-                        .setLocalCacheSettings(com.google.firebase.firestore.PersistentCacheSettings.newBuilder().build())
-                        .build();
+        // 開啟現代化 Firebase 離線快取持久化設定
+        FirebaseFirestoreSettings settings = new FirebaseFirestoreSettings.Builder()
+                .setLocalCacheSettings(PersistentCacheSettings.newBuilder().build())
+                .build();
         db.setFirestoreSettings(settings);
+
+
+        if (mAuth.getCurrentUser() != null) {
+
+            Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+            startActivity(intent);
+            finish();
+            return;
+        }
 
         if (getSupportActionBar() != null) {
             getSupportActionBar().hide();
@@ -951,12 +966,10 @@ public class LoginActivity extends AppCompatActivity {
                         })
                         .addOnFailureListener(e -> Toast.makeText(LoginActivity.this, "登入失敗: " + e.getMessage(), Toast.LENGTH_LONG).show());
             } else {
-
                 if (name.isEmpty()) {
                     Toast.makeText(LoginActivity.this, "註冊必須填寫用戶姓名！", Toast.LENGTH_SHORT).show();
                     return;
                 }
-
 
                 if (!password.equals(confirmPassword)) {
                     Toast.makeText(LoginActivity.this, "❌ 兩次輸入的密碼不相同，請重新核對！", Toast.LENGTH_LONG).show();
@@ -1609,7 +1622,6 @@ public class AddTaskActivity extends AppCompatActivity {
     private final ArrayList<String> selectedImageUris = new ArrayList<>();
     private Uri cameraImageUri;
 
-
     private MediaRecorder mediaRecorder;
     private MediaPlayer mediaPlayer;
     private String voiceFilePath = "";
@@ -1629,10 +1641,9 @@ public class AddTaskActivity extends AppCompatActivity {
 
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setTitle("雲端發布：新增任務");
+            getSupportActionBar().setTitle(getString(R.string.title_add_task_cloud));
         }
 
-        // 🎯 智慧合併權限檢查 (通知、相機、錄音)
         ArrayList<String> permissionsNeeded = new ArrayList<>();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
@@ -1664,18 +1675,15 @@ public class AddTaskActivity extends AppCompatActivity {
         tvImageCount = findViewById(R.id.tvImageCount);
         layoutImagePreviewContainer = findViewById(R.id.layoutImagePreviewContainer);
 
-
         btnStartRecord = findViewById(R.id.btnStartRecord);
         btnStopRecord = findViewById(R.id.btnStopRecord);
         btnPlayRecord = findViewById(R.id.btnPlayRecord);
 
-
         voiceFilePath = getExternalCacheDir().getAbsolutePath() + "/Task_Voice_Temp.3gp";
-
 
         btnStartRecord.setOnClickListener(v -> {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(this, "請先開通語音錄音權限！", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.toast_permission_record), Toast.LENGTH_SHORT).show();
                 return;
             }
             try {
@@ -1690,13 +1698,12 @@ public class AddTaskActivity extends AppCompatActivity {
                 btnStartRecord.setEnabled(false);
                 btnStopRecord.setEnabled(true);
                 btnPlayRecord.setEnabled(false);
-                Toast.makeText(this, "🎙️ 正在錄製任務語音備忘錄...", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.toast_recording_started), Toast.LENGTH_SHORT).show();
             } catch (IOException e) {
                 e.printStackTrace();
             }
         });
 
-        // ⏹️ 停止錄音事件監聽
         btnStopRecord.setOnClickListener(v -> {
             if (mediaRecorder != null) {
                 try {
@@ -1710,10 +1717,9 @@ public class AddTaskActivity extends AppCompatActivity {
                 btnStartRecord.setEnabled(true);
                 btnStopRecord.setEnabled(false);
                 btnPlayRecord.setEnabled(true);
-                Toast.makeText(this, "✅ 語音錄製完成！", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.toast_recording_finished), Toast.LENGTH_SHORT).show();
             }
         });
-
 
         btnPlayRecord.setOnClickListener(v -> {
             if (mediaPlayer != null) {
@@ -1725,14 +1731,14 @@ public class AddTaskActivity extends AppCompatActivity {
                 mediaPlayer.setDataSource(voiceFilePath);
                 mediaPlayer.prepare();
                 mediaPlayer.start();
-                Toast.makeText(this, "🔊 正在播放任務語音備忘錄...", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, getString(R.string.toast_recording_playing), Toast.LENGTH_SHORT).show();
             } catch (IOException e) {
                 e.printStackTrace();
             }
         });
 
         ArrayList<String> dynamicMembers = new ArrayList<>();
-        dynamicMembers.add("👥 正在同步家庭成員...");
+        dynamicMembers.add(getString(R.string.syncing_members));
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item, dynamicMembers);
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerMember.setAdapter(adapter);
@@ -1741,7 +1747,7 @@ public class AddTaskActivity extends AppCompatActivity {
 
         btnAddTaskImage.setOnClickListener(v -> {
             if (selectedImageUris.size() >= 10) {
-                Toast.makeText(AddTaskActivity.this, "已達上限 10 張相片！", Toast.LENGTH_SHORT).show();
+                Toast.makeText(AddTaskActivity.this, getString(R.string.toast_photo_limit_reached), Toast.LENGTH_SHORT).show();
                 return;
             }
             Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
@@ -1754,7 +1760,7 @@ public class AddTaskActivity extends AppCompatActivity {
         if (btnCaptureImage != null) {
             btnCaptureImage.setOnClickListener(v -> {
                 if (selectedImageUris.size() >= 10) {
-                    Toast.makeText(AddTaskActivity.this, "已達上限 10 張相片！", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(AddTaskActivity.this, getString(R.string.toast_photo_limit_reached), Toast.LENGTH_SHORT).show();
                     return;
                 }
                 ContentValues values = new ContentValues();
@@ -1793,15 +1799,16 @@ public class AddTaskActivity extends AppCompatActivity {
         btnSaveTask.setOnClickListener(v -> {
             String title = etTaskTitle.getText().toString().trim();
             Object selectedMemberObj = spinnerMember.getSelectedItem();
-            String member = (selectedMemberObj != null) ? selectedMemberObj.toString() : "未指定成員";
+            // 改為英文預設成員值 / Changed to English default member value
+            String member = (selectedMemberObj != null) ? selectedMemberObj.toString() : getString(R.string.unassigned_member);
             String notes = etTaskNotes.getText().toString().trim();
 
             if (title.isEmpty()) {
-                Toast.makeText(AddTaskActivity.this, "請輸入任務名稱！", Toast.LENGTH_SHORT).show();
+                Toast.makeText(AddTaskActivity.this, getString(R.string.toast_error_empty_title), Toast.LENGTH_SHORT).show();
                 return;
             }
             if (currentUserGroupId == null || currentUserGroupId.isEmpty()) {
-                Toast.makeText(AddTaskActivity.this, "正在獲取群組資訊，請稍候再試...", Toast.LENGTH_SHORT).show();
+                Toast.makeText(AddTaskActivity.this, getString(R.string.toast_error_group_info), Toast.LENGTH_SHORT).show();
                 return;
             }
 
@@ -1816,6 +1823,9 @@ public class AddTaskActivity extends AppCompatActivity {
 
             String cloudDocIdStr = db.collection("tasks").document().getId();
 
+            DatabaseHelper localDb = new DatabaseHelper(AddTaskActivity.this);
+            localDb.addTask(title, member, selectedDate != null ? selectedDate : "", finalTimeRange, notes, combinedImagesStr);
+
             Map<String, Object> taskData = new HashMap<>();
             taskData.put("id", cloudDocIdStr);
             taskData.put("title", title);
@@ -1823,9 +1833,8 @@ public class AddTaskActivity extends AppCompatActivity {
             taskData.put("task_date", selectedDate != null ? selectedDate : "");
             taskData.put("task_time", finalTimeRange);
             taskData.put("task_notes", notes);
-            taskData.put("task_status", "未完成");
+            taskData.put("task_status", "Pending");
             taskData.put("task_image", combinedImagesStr);
-
 
             File recordedFile = new File(voiceFilePath);
             if (recordedFile.exists() && btnPlayRecord.isEnabled()) {
@@ -1841,10 +1850,18 @@ public class AddTaskActivity extends AppCompatActivity {
                     .set(taskData)
                     .addOnSuccessListener(aVoid -> {
                         setTaskAlarm(title, member);
-                        Toast.makeText(AddTaskActivity.this, "家庭雲端任務發布成功！", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(AddTaskActivity.this, getString(R.string.toast_success_cloud_sync), Toast.LENGTH_SHORT).show();
                         finish();
                     })
-                    .addOnFailureListener(e -> Toast.makeText(AddTaskActivity.this, "發布失敗: " + e.getMessage(), Toast.LENGTH_LONG).show());
+                    .addOnFailureListener(e -> {
+                        setTaskAlarm(title, member);
+                        Toast.makeText(AddTaskActivity.this, getString(R.string.toast_success_local_cache), Toast.LENGTH_LONG).show();
+                        finish();
+                    });
+
+            setTaskAlarm(title, member);
+            Toast.makeText(AddTaskActivity.this, getString(R.string.toast_success_queue), Toast.LENGTH_SHORT).show();
+            finish();
         });
     }
 
@@ -1885,7 +1902,8 @@ public class AddTaskActivity extends AppCompatActivity {
     }
 
     private void updateTimeTextView() {
-        tvSelectedTime.setText("時間段: " + startTime + " - " + endTime);
+
+        tvSelectedTime.setText(getString(R.string.time_range_prefix, startTime, endTime));
     }
 
     @Override
@@ -1919,7 +1937,8 @@ public class AddTaskActivity extends AppCompatActivity {
                 addPreviewImageView(cameraImageUri);
             }
         }
-        tvImageCount.setText("相片附件 (最多 10 張): " + selectedImageUris.size() + "/10");
+
+        tvImageCount.setText(getString(R.string.photo_attachment_limit, selectedImageUris.size()));
     }
 
     private void addPreviewImageView(Uri uri) {
@@ -1958,6 +1977,7 @@ public class AddTaskActivity extends AppCompatActivity {
             PendingIntent pendingIntent = PendingIntent.getBroadcast(
                     this, requestCode, intent, PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
             AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+
             if (alarmManager != null) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
                     alarmManager.set(AlarmManager.RTC_WAKEUP, alarmCalendar.getTimeInMillis(), pendingIntent);

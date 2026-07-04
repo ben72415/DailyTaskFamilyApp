@@ -6,11 +6,9 @@ import android.widget.Button;
 import android.widget.CalendarView;
 import android.widget.ImageButton;
 import android.widget.Toast;
-
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.FirebaseFirestoreSettings;
@@ -18,7 +16,6 @@ import com.google.firebase.firestore.ListenerRegistration;
 import com.google.firebase.firestore.LocalCacheSettings;
 import com.google.firebase.firestore.PersistentCacheSettings;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
-
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -63,7 +60,6 @@ public class MainActivity extends AppCompatActivity {
 
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
         currentDateSelected = sdf.format(new Date());
-
         mainCalendarView = findViewById(R.id.mainCalendarView);
         btnAddTask = findViewById(R.id.btnAddTask);
         btnMainSettings = findViewById(R.id.btnMainSettings);
@@ -102,7 +98,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                 })
                 .addOnFailureListener(e -> {
-                    Toast.makeText(MainActivity.this, "網絡異常，正在讀取離線緩存...", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, getString(R.string.toast_offline_cache_loading), Toast.LENGTH_SHORT).show();
                     startRealtimeTaskListening();
                 });
     }
@@ -114,23 +110,20 @@ public class MainActivity extends AppCompatActivity {
 
         if (currentUserGroupId == null || currentUserGroupId.isEmpty()) return;
 
-
         DatabaseHelper localDb = new DatabaseHelper(this);
-
         taskListenerRegistration = db.collection("tasks")
                 .whereEqualTo("group_id", currentUserGroupId)
                 .whereEqualTo("task_date", currentDateSelected)
                 .addSnapshotListener((value, error) -> {
-
 
                     if (error != null) {
                         List<Task> localTaskList = localDb.getTasksByDate(currentDateSelected);
                         if (localTaskList != null && !localTaskList.isEmpty()) {
                             taskAdapter = new TaskAdapter(localTaskList);
                             rvTasks.setAdapter(taskAdapter);
-                            Toast.makeText(MainActivity.this, "📡 處於離線狀態，已成功加載本地加密備份任務", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(MainActivity.this, getString(R.string.toast_offline_loaded_success), Toast.LENGTH_SHORT).show();
                         } else {
-                            Toast.makeText(MainActivity.this, "📴 網絡中斷且本地尚無當日快取", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(MainActivity.this, getString(R.string.toast_offline_no_cache), Toast.LENGTH_SHORT).show();
                         }
                         return;
                     }
