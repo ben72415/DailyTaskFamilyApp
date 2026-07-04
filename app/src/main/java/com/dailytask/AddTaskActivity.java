@@ -9,6 +9,8 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.media.MediaPlayer;
+import android.media.MediaRecorder;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -33,6 +35,8 @@ import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
@@ -43,7 +47,8 @@ public class AddTaskActivity extends AppCompatActivity {
 
     private Spinner spinnerMember;
     private EditText etTaskTitle, etTaskNotes;
-    private Button btnSaveTask, btnSelectStartTime, btnSelectEndTime, btnAddTaskImage, btnCaptureImage; // 🎯 新增 btnCaptureImage
+    private Button btnSaveTask, btnSelectStartTime, btnSelectEndTime, btnAddTaskImage, btnCaptureImage;
+    private Button btnStartRecord, btnStopRecord, btnPlayRecord;
     private TextView tvSelectedTime, tvImageCount;
     private LinearLayout layoutImagePreviewContainer;
 
@@ -59,6 +64,11 @@ public class AddTaskActivity extends AppCompatActivity {
     private int startMinute = 0;
     private final ArrayList<String> selectedImageUris = new ArrayList<>();
     private Uri cameraImageUri;
+
+
+    private MediaRecorder mediaRecorder;
+    private MediaPlayer mediaPlayer;
+    private String voiceFilePath = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -78,7 +88,7 @@ public class AddTaskActivity extends AppCompatActivity {
             getSupportActionBar().setTitle("雲端發布：新增任務");
         }
 
-        // 動態權限檢查 (通知與相機)
+        // 🎯 智慧合併權限檢查 (通知、相機、錄音)
         ArrayList<String> permissionsNeeded = new ArrayList<>();
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
@@ -87,6 +97,9 @@ public class AddTaskActivity extends AppCompatActivity {
         }
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
             permissionsNeeded.add(Manifest.permission.CAMERA);
+        }
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            permissionsNeeded.add(Manifest.permission.RECORD_AUDIO);
         }
         if (!permissionsNeeded.isEmpty()) {
             ActivityCompat.requestPermissions(this, permissionsNeeded.toArray(new String[0]), 101);
@@ -103,12 +116,76 @@ public class AddTaskActivity extends AppCompatActivity {
         tvSelectedTime = findViewById(R.id.tvSelectedTime);
         btnSaveTask = findViewById(R.id.btnSaveTask);
         btnAddTaskImage = findViewById(R.id.btnAddTaskImage);
-
-
         btnCaptureImage = findViewById(R.id.btnCaptureImage);
-
         tvImageCount = findViewById(R.id.tvImageCount);
         layoutImagePreviewContainer = findViewById(R.id.layoutImagePreviewContainer);
+
+
+        btnStartRecord = findViewById(R.id.btnStartRecord);
+        btnStopRecord = findViewById(R.id.btnStopRecord);
+        btnPlayRecord = findViewById(R.id.btnPlayRecord);
+
+
+        voiceFilePath = getExternalCacheDir().getAbsolutePath() + "/Task_Voice_Temp.3gp";
+
+
+        btnStartRecord.setOnClickListener(v -> {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(this, "請先開通語音錄音權限！", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            try {
+                mediaRecorder = new MediaRecorder();
+                mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+                mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+                mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
+                mediaRecorder.setOutputFile(voiceFilePath);
+                mediaRecorder.prepare();
+                mediaRecorder.start();
+
+                btnStartRecord.setEnabled(false);
+                btnStopRecord.setEnabled(true);
+                btnPlayRecord.setEnabled(false);
+                Toast.makeText(this, "🎙️ 正在錄製任務語音備忘錄...", Toast.LENGTH_SHORT).show();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
+
+        // ⏹️ 停止錄音事件監聽
+        btnStopRecord.setOnClickListener(v -> {
+            if (mediaRecorder != null) {
+                try {
+                    mediaRecorder.stop();
+                } catch (RuntimeException stopException) {
+                    // 防禦型 catch
+                }
+                mediaRecorder.release();
+                mediaRecorder = null;
+
+                btnStartRecord.setEnabled(true);
+                btnStopRecord.setEnabled(false);
+                btnPlayRecord.setEnabled(true);
+                Toast.makeText(this, "✅ 語音錄製完成！", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+
+        btnPlayRecord.setOnClickListener(v -> {
+            if (mediaPlayer != null) {
+                mediaPlayer.release();
+                mediaPlayer = null;
+            }
+            try {
+                mediaPlayer = new MediaPlayer();
+                mediaPlayer.setDataSource(voiceFilePath);
+                mediaPlayer.prepare();
+                mediaPlayer.start();
+                Toast.makeText(this, "🔊 正在播放任務語音備忘錄...", Toast.LENGTH_SHORT).show();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        });
 
         ArrayList<String> dynamicMembers = new ArrayList<>();
         dynamicMembers.add("👥 正在同步家庭成員...");
@@ -117,7 +194,6 @@ public class AddTaskActivity extends AppCompatActivity {
         spinnerMember.setAdapter(adapter);
 
         updateTimeTextView();
-
 
         btnAddTaskImage.setOnClickListener(v -> {
             if (selectedImageUris.size() >= 10) {
@@ -131,19 +207,12 @@ public class AddTaskActivity extends AppCompatActivity {
             startActivityForResult(intent, 300);
         });
 
-
         if (btnCaptureImage != null) {
             btnCaptureImage.setOnClickListener(v -> {
                 if (selectedImageUris.size() >= 10) {
                     Toast.makeText(AddTaskActivity.this, "已達上限 10 張相片！", Toast.LENGTH_SHORT).show();
                     return;
                 }
-                if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
-                    Toast.makeText(this, "請先開啟相機權限！", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-
-
                 ContentValues values = new ContentValues();
                 values.put(MediaStore.Images.Media.TITLE, "DailyTask_Capture_" + System.currentTimeMillis());
                 values.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
@@ -212,6 +281,15 @@ public class AddTaskActivity extends AppCompatActivity {
             taskData.put("task_notes", notes);
             taskData.put("task_status", "未完成");
             taskData.put("task_image", combinedImagesStr);
+
+
+            File recordedFile = new File(voiceFilePath);
+            if (recordedFile.exists() && btnPlayRecord.isEnabled()) {
+                taskData.put("task_voice", voiceFilePath);
+            } else {
+                taskData.put("task_voice", "");
+            }
+
             taskData.put("group_id", currentUserGroupId);
             taskData.put("created_by", currentUid != null ? currentUid : "");
 
@@ -269,8 +347,6 @@ public class AddTaskActivity extends AppCompatActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-
-
         if (requestCode == 300 && resultCode == RESULT_OK && data != null) {
             final int takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION;
             if (data.getClipData() != null) {
@@ -293,15 +369,12 @@ public class AddTaskActivity extends AppCompatActivity {
                 } catch (Exception e) { e.printStackTrace(); }
             }
         }
-
-
         if (requestCode == 350 && resultCode == RESULT_OK) {
             if (cameraImageUri != null) {
                 selectedImageUris.add(cameraImageUri.toString());
                 addPreviewImageView(cameraImageUri);
             }
         }
-
         tvImageCount.setText("相片附件 (最多 10 張): " + selectedImageUris.size() + "/10");
     }
 
@@ -354,6 +427,19 @@ public class AddTaskActivity extends AppCompatActivity {
             }
         } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (mediaRecorder != null) {
+            mediaRecorder.release();
+            mediaRecorder = null;
+        }
+        if (mediaPlayer != null) {
+            mediaPlayer.release();
+            mediaPlayer = null;
         }
     }
 

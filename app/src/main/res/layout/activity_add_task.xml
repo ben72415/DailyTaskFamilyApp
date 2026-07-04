@@ -114,6 +114,67 @@
                 android:inputType="textMultiLine"/>
 
             <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🎙️ 語音備忘錄 (Voice Note)"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="#555555"
+                android:layout_marginBottom="8dp"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:weightSum="3"
+                android:layout_marginBottom="20dp">
+
+                <Button
+                    android:id="@+id/btnStartRecord"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="4dp"
+                    android:text="🔴 錄音"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:backgroundTint="#E74C3C"
+                    android:textColor="@android:color/white"
+                    android:paddingTop="12dp"
+                    android:paddingBottom="12dp"/>
+
+                <Button
+                    android:id="@+id/btnStopRecord"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginHorizontal="2dp"
+                    android:text="⏹️ 停止"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:backgroundTint="#7F8C8D"
+                    android:textColor="@android:color/white"
+                    android:enabled="false"
+                    android:paddingTop="12dp"
+                    android:paddingBottom="12dp"/>
+
+                <Button
+                    android:id="@+id/btnPlayRecord"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="4dp"
+                    android:text="▶️ 播放"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:backgroundTint="#2ECC71"
+                    android:textColor="@android:color/white"
+                    android:enabled="false"
+                    android:paddingTop="12dp"
+                    android:paddingBottom="12dp"/>
+            </LinearLayout>
+
+            <TextView
                 android:id="@+id/tvImageCount"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

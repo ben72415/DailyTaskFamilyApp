@@ -1,12 +1,13 @@
 package com.dailytask;
 
-import android.Manifest;
 import android.app.DatePickerDialog;
 import android.app.TimePickerDialog;
 import android.content.ClipData;
 import android.content.ContentValues;
 import android.content.Intent;
 import android.graphics.Color;
+import android.media.MediaPlayer;
+import android.media.MediaRecorder;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
@@ -22,11 +23,12 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -39,7 +41,8 @@ public class EditTaskActivity extends AppCompatActivity {
     private TextView tvEditTitleHeader, tvEditImageCount, tvPermissionWarning;
     private EditText etEditTaskNotes;
     private CheckBox cbEditStatus;
-    private Button btnEditPickImage, btnEditCaptureImage, btnEditReschedule, btnEditSaveTask; // 🎯 新增 btnEditCaptureImage
+    private Button btnEditPickImage, btnEditCaptureImage, btnEditReschedule, btnEditSaveTask;
+    private Button btnEditStartRecord, btnEditStopRecord, btnEditPlayRecord;
     private LinearLayout layoutEditImageContainer;
 
     private FirebaseFirestore db;
@@ -51,7 +54,12 @@ public class EditTaskActivity extends AppCompatActivity {
     private String taskId;
     private String taskTitle, taskMember, taskDate, taskTime;
     private ArrayList<String> editImageUris = new ArrayList<>();
-    private Uri editCameraImageUri; // 🎯 暫存相機拍攝路徑
+    private Uri editCameraImageUri;
+
+
+    private MediaRecorder mediaRecorder;
+    private MediaPlayer mediaPlayer;
+    private String voiceFilePath = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -89,13 +97,18 @@ public class EditTaskActivity extends AppCompatActivity {
         etEditTaskNotes = findViewById(R.id.etEditTaskNotes);
         cbEditStatus = findViewById(R.id.cbEditStatus);
         btnEditPickImage = findViewById(R.id.btnEditPickImage);
-
-
         btnEditCaptureImage = findViewById(R.id.btnEditCaptureImage);
-
         btnEditReschedule = findViewById(R.id.btnEditReschedule);
         btnEditSaveTask = findViewById(R.id.btnEditSaveTask);
         layoutEditImageContainer = findViewById(R.id.layoutEditImageContainer);
+
+
+        btnEditStartRecord = findViewById(R.id.btnEditStartRecord);
+        btnEditStopRecord = findViewById(R.id.btnEditStopRecord);
+        btnEditPlayRecord = findViewById(R.id.btnEditPlayRecord);
+
+
+        voiceFilePath = getExternalCacheDir().getAbsolutePath() + "/Task_Voice_Edit_Temp.3gp";
 
         tvPermissionWarning = new TextView(this);
         tvPermissionWarning.setTextSize(14);
@@ -113,6 +126,62 @@ public class EditTaskActivity extends AppCompatActivity {
         }
         rebuildImagePreviews();
 
+
+        if (cloudDocId != null) {
+            db.collection("tasks").document(cloudDocId).get().addOnSuccessListener(documentSnapshot -> {
+                if (documentSnapshot.exists()) {
+                    String cloudVoicePath = documentSnapshot.getString("task_voice");
+                    if (cloudVoicePath != null && !cloudVoicePath.isEmpty()) {
+                        voiceFilePath = cloudVoicePath;
+                        btnEditPlayRecord.setEnabled(true); // 有歷史錄音，直接啟用播放按鈕
+                    }
+                }
+            });
+        }
+
+
+        btnEditStartRecord.setOnClickListener(v -> {
+            try {
+                mediaRecorder = new MediaRecorder();
+                mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+                mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+                mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
+                mediaRecorder.setOutputFile(voiceFilePath);
+                mediaRecorder.prepare();
+                mediaRecorder.start();
+
+                btnEditStartRecord.setEnabled(false);
+                btnEditStopRecord.setEnabled(true);
+                btnEditPlayRecord.setEnabled(false);
+                Toast.makeText(this, "🎙️ 正在補錄語音說明...", Toast.LENGTH_SHORT).show();
+            } catch (IOException e) { e.printStackTrace(); }
+        });
+
+
+        btnEditStopRecord.setOnClickListener(v -> {
+            if (mediaRecorder != null) {
+                try { mediaRecorder.stop(); } catch (RuntimeException e) {}
+                mediaRecorder.release();
+                mediaRecorder = null;
+                btnEditStartRecord.setEnabled(true);
+                btnEditStopRecord.setEnabled(false);
+                btnEditPlayRecord.setEnabled(true);
+                Toast.makeText(this, "✅ 語音補錄完成！", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+
+        btnEditPlayRecord.setOnClickListener(v -> {
+            try {
+                if (mediaPlayer != null) { mediaPlayer.release(); }
+                mediaPlayer = new MediaPlayer();
+                mediaPlayer.setDataSource(voiceFilePath);
+                mediaPlayer.prepare();
+                mediaPlayer.start();
+                Toast.makeText(this, "🔊 正在播放任務語音...", Toast.LENGTH_SHORT).show();
+            } catch (IOException e) { e.printStackTrace(); }
+        });
+
         checkUserAccessControl();
 
         btnEditPickImage.setOnClickListener(v -> {
@@ -127,7 +196,6 @@ public class EditTaskActivity extends AppCompatActivity {
             startActivityForResult(intent, 400);
         });
 
-
         if (btnEditCaptureImage != null) {
             btnEditCaptureImage.setOnClickListener(v -> {
                 if (editImageUris.size() >= 10) {
@@ -141,7 +209,7 @@ public class EditTaskActivity extends AppCompatActivity {
 
                 Intent cameraIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
                 cameraIntent.putExtra(MediaStore.EXTRA_OUTPUT, editCameraImageUri);
-                startActivityForResult(cameraIntent, 450); // 450 代表編輯頁相機
+                startActivityForResult(cameraIntent, 450);
             });
         }
 
@@ -193,6 +261,12 @@ public class EditTaskActivity extends AppCompatActivity {
                 updates.put("task_status", updatedStatus);
                 updates.put("task_image", finalImagesStr);
 
+
+                File vFile = new File(voiceFilePath);
+                if (vFile.exists() && btnEditPlayRecord.isEnabled()) {
+                    updates.put("task_voice", voiceFilePath);
+                }
+
                 db.collection("tasks").document(cloudDocId).update(updates)
                         .addOnSuccessListener(aVoid -> {
                             Toast.makeText(EditTaskActivity.this, "雲端修改同步成功！", Toast.LENGTH_SHORT).show();
@@ -213,6 +287,11 @@ public class EditTaskActivity extends AppCompatActivity {
                             btnEditReschedule.setEnabled(false);
                             btnEditPickImage.setEnabled(false);
                             if (btnEditCaptureImage != null) btnEditCaptureImage.setEnabled(false);
+
+
+                            btnEditStartRecord.setEnabled(false);
+                            btnEditStopRecord.setEnabled(false);
+
                             etEditTaskNotes.setEnabled(false);
                             cbEditStatus.setEnabled(false);
 
@@ -254,8 +333,6 @@ public class EditTaskActivity extends AppCompatActivity {
                 } catch (Exception e) { e.printStackTrace(); }
             }
         }
-
-
         if (requestCode == 450 && resultCode == RESULT_OK) {
             if (editCameraImageUri != null) {
                 editImageUris.add(editCameraImageUri.toString());
@@ -317,6 +394,13 @@ public class EditTaskActivity extends AppCompatActivity {
             if (i < editImageUris.size() - 1) sb.append(",");
         }
         return sb.toString();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (mediaRecorder != null) { mediaRecorder.release(); }
+        if (mediaPlayer != null) { mediaPlayer.release(); }
     }
 
     @Override
